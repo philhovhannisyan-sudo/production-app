@@ -8,7 +8,7 @@
 </head>
 <body>
 <header>
-  <h1>Производство <small id="syncBadge"></small></h1>
+  <div class="topbar"><h1>Производство</h1><button type="button" id="syncBadge" class="sync"></button></div>
   <nav id="tabs">
     <button data-tab="dash" class="active">Сводка</button>
     <button data-tab="prod">Учёт выпуска</button>
@@ -25,9 +25,9 @@
     <div class="row">
       <label>Месяц <input type="month" id="dashMonth"></label>
     </div>
-    <table id="dashTable"></table>
+    <table class="cards" id="dashTable"></table>
     <h3>Последние отклонения по качеству</h3>
-    <table id="dashQc"></table>
+    <table class="cards" id="dashQc"></table>
   </section>
 
   <!-- Учёт выпуска -->
@@ -40,8 +40,8 @@
         <label>Продукт <input name="product" list="productList" required></label>
         <label>№ партии <input name="batch" required></label>
         <label>Смена <select name="shift"><option>1</option><option>2</option><option>3</option></select></label>
-        <label>План <input type="number" step="any" name="plan"></label>
-        <label>Факт <input type="number" step="any" name="fact" required></label>
+        <label>План <input type="number" step="any" inputmode="decimal" name="plan"></label>
+        <label>Факт <input type="number" step="any" inputmode="decimal" name="fact" required></label>
         <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option><option>шт</option></select></label>
         <label class="wide">Примечание <input name="note"></label>
       </div>
@@ -51,7 +51,7 @@
       <label>Фильтр <select id="prodFilter" class="catSelect" data-all="1"></select></label>
       <input id="prodSearch" placeholder="Поиск по продукту / партии">
     </div>
-    <table id="prodTable"></table>
+    <table class="cards" id="prodTable"></table>
   </section>
 
   <!-- Рецептуры -->
@@ -62,7 +62,7 @@
       <div class="grid">
         <label>Продукт <input name="product" required></label>
         <label>Направление <select name="cat" class="catSelect" required></select></label>
-        <label>Базовый объём <input type="number" step="any" name="base" required></label>
+        <label>Базовый объём <input type="number" step="any" inputmode="decimal" name="base" required></label>
         <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option></select></label>
       </div>
       <table id="ingTable" class="edit">
@@ -73,15 +73,15 @@
       <button>Сохранить</button>
       <button type="button" id="recReset">Очистить</button>
     </form>
-    <table id="recTable"></table>
+    <table class="cards" id="recTable"></table>
 
     <div class="card">
       <h3>Калькулятор партии</h3>
       <div class="row">
         <select id="calcRec"></select>
-        <label>Объём партии <input type="number" step="any" id="calcVol"></label>
+        <label>Объём партии <input type="number" step="any" inputmode="decimal" id="calcVol"></label>
       </div>
-      <table id="calcTable"></table>
+      <table class="cards" id="calcTable"></table>
     </div>
   </section>
 
@@ -93,13 +93,15 @@
         <label>Дата <input type="date" name="date" required></label>
         <label>Направление <select name="cat" class="catSelect" required></select></label>
         <label>№ партии <input name="batch" required></label>
-        <label>Показатель <select name="param" required></select></label>
-        <label>Значение <input type="number" step="any" name="value" required></label>
+        <label>Показатель <input name="param" list="paramList" required autocomplete="off"></label>
+        <label>Значение <input type="number" step="any" inputmode="decimal" name="value" required></label>
         <label>Лаборант <input name="who"></label>
       </div>
+      <p id="paramHint" class="warn"></p>
+      <p id="normHint" class="hint"></p>
       <button>Добавить</button>
     </form>
-    <table id="qcTable"></table>
+    <table class="cards" id="qcTable"></table>
 
     <div class="card">
       <h3>Нормы показателей</h3>
@@ -107,12 +109,12 @@
       <form id="normForm" class="row">
         <select name="cat" class="catSelect" required></select>
         <input name="param" placeholder="Показатель" required>
-        <input name="min" type="number" step="any" placeholder="мин">
-        <input name="max" type="number" step="any" placeholder="макс">
+        <input name="min" type="number" step="any" inputmode="decimal" placeholder="мин">
+        <input name="max" type="number" step="any" inputmode="decimal" placeholder="макс">
         <input name="unit" placeholder="ед.">
         <button>Добавить/изменить</button>
       </form>
-      <table id="normTable"></table>
+      <table class="cards" id="normTable"></table>
     </div>
   </section>
 
@@ -147,7 +149,7 @@
         <label class="wide">Токен (fine-grained, Contents: Read and write) <input name="token" type="password" autocomplete="off"></label>
         <div class="wide">
           <button>Сохранить и подключить</button>
-          <button type="button" id="ghPull">Загрузить с GitHub</button>
+          <button type="button" id="ghPull">Синхронизировать сейчас</button>
           <button type="button" id="ghOff">Отключить</button>
         </div>
       </form>
@@ -165,6 +167,7 @@
 </main>
 
 <datalist id="productList"></datalist>
+<datalist id="paramList"></datalist>
 <script src="app.js"></script>
 </body>
 </html>

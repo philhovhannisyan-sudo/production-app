@@ -30,3 +30,37 @@ tr.bad td { color:var(--bad); font-weight:600; }
 .doc h4 { margin:0 0 4px; } .doc pre { white-space:pre-wrap; font:inherit; margin:6px 0; }
 .file input { display:none; } .file { display:inline-block; background:#666; color:#fff; padding:6px 12px; border-radius:5px; cursor:pointer; }
 @media (max-width:600px) { table { display:block; overflow-x:auto; } }
+
+/* Синхронизация */
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.topbar h1 { margin:0; }
+.sync { margin:0; font-size:13px; padding:5px 10px; border-radius:999px; background:#ffffff22; color:#fff; border:1px solid #fff5; }
+.sync-ok { background:#2e7d3233; border-color:#7bc47f; }
+.sync-busy { background:#ffffff22; }
+.sync-pending { background:#f9a82533; border-color:#f9c86b; }
+.sync-error { background:#c0392b; border-color:#c0392b; font-weight:600; }
+
+/* Статусы анализов */
+.st { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+.st-ok { background:#e3f2e4; color:var(--ok); }
+.st-bad { background:#fbe3e0; color:var(--bad); }
+.st-none { background:#eee; color:#555; }
+.warn { color:#9a6200; font-size:13px; margin:0 0 6px; }
+.warn:empty, #normHint:empty { display:none; }
+
+/* Телефон: таблицы превращаются в карточки */
+@media (max-width:600px) {
+  table.cards { display:block; overflow:visible; background:transparent; }
+  table.cards thead { display:none; }
+  table.cards tbody { display:block; }
+  table.cards tr { display:block; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin-bottom:8px; }
+  table.cards tr.bad { border-left:4px solid var(--bad); }
+  table.cards td { display:flex; justify-content:space-between; gap:12px; border:0; padding:3px 0; text-align:right; }
+  table.cards td[data-label]::before { content:attr(data-label); color:var(--muted); font-weight:400; text-align:left; }
+  table.cards td:empty { display:none; }
+  table.cards td:last-child { justify-content:flex-end; padding-top:6px; }
+  table.cards td:last-child::before { content:none; }
+  table.cards tr.empty td { justify-content:center; }
+  table.cards th { display:flex; justify-content:space-between; border:0; }
+  button.small { padding:8px 14px; font-size:14px; }
+}

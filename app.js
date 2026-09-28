@@ -21,25 +21,76 @@ const DEFAULT_NORMS = [
 ];
 
 const KEY = 'yerevan-production-v1';
-let db = load();
+const DIRTY_KEY = KEY + '-dirty';
+const COLLS = ['prod', 'recipes', 'qc', 'norms', 'kb'];
+const normId = (cat, param) => 'n-' + cat + '-' + param;
 
+// Приводит данные любой версии к текущему формату
+function migrate(d) {
+  d = d || {};
+  COLLS.forEach(c => { if (!Array.isArray(d[c])) d[c] = []; });
+  if (!d.deleted || typeof d.deleted !== 'object') d.deleted = {};
+  d.norms.forEach(n => { if (!n.id) n.id = normId(n.cat, n.param); });
+  COLLS.forEach(c => d[c].forEach(r => { if (r.upd == null) r.upd = 0; }));
+  // Анализы старого формата: фиксируем норму, действовавшую на момент перехода
+  d.qc.forEach(r => {
+    if (r.norm === undefined) {
+      const n = d.norms.find(x => x.cat === r.cat && x.param === r.param);
+      r.norm = n ? { min: n.min, max: n.max, unit: n.unit } : null;
+    }
+  });
+  return d;
+}
+
+function freshDb() {
+  return migrate({ norms: DEFAULT_NORMS.map(n => ({ ...n })) });
+}
+
+let db = load();
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(KEY));
-    if (d) return d;
+    if (d) return migrate(d);
   } catch (e) { /* пусто */ }
-  return { prod: [], recipes: [], qc: [], norms: DEFAULT_NORMS.slice(), kb: [] };
+  return freshDb();
+}
+
+// Объединение двух версий: по каждой записи побеждает более позднее изменение,
+// удаления переносятся через список deleted
+function merge(a, b) {
+  const out = { deleted: { ...a.deleted } };
+  for (const [id, t] of Object.entries(b.deleted)) out.deleted[id] = Math.max(out.deleted[id] || 0, t);
+  for (const c of COLLS) {
+    const m = new Map();
+    for (const r of [...a[c], ...b[c]]) {
+      const cur = m.get(r.id);
+      if (!cur || (r.upd || 0) > (cur.upd || 0)) m.set(r.id, r);
+    }
+    out[c] = [...m.values()].filter(r => !(out.deleted[r.id] >= (r.upd || 0)));
+  }
+  return out;
+}
+
+const touch = r => { r.upd = Date.now(); return r; };
+
+function isDirty() { try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch (e) { return false; } }
+function setDirty(v) { try { v ? localStorage.setItem(DIRTY_KEY, '1') : localStorage.removeItem(DIRTY_KEY); } catch (e) { /* пусто */ } }
+
+function persist() {
+  try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
 }
 function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { alert('Не удалось сохранить: ' + e.message); }
+  persist();
+  setDirty(true);
+  editVer++;
   renderAll();
-  schedulePush();
+  scheduleSync();
 }
 
 /* ---------- Синхронизация с GitHub ---------- */
 const GH_KEY = 'yerevan-production-gh';
 const GH_DEFAULT = { owner: 'philhovhannisyan-sudo', repo: 'Claude-projects', branch: 'main', path: 'data/production.json', token: '' };
-let gh = loadGh(), ghSha = null, pushTimer = null, pushing = false, pushAgain = false;
+let gh = loadGh(), syncTimer = null, syncing = false, syncAgain = false, lastSync = null, editVer = 0;
 
 function loadGh() {
   try { return { ...GH_DEFAULT, ...JSON.parse(localStorage.getItem(GH_KEY)) }; } catch (e) { return { ...GH_DEFAULT }; }
@@ -54,65 +105,74 @@ const b64enc = s => {
   return btoa(bin);
 };
 const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, '')), c => c.charCodeAt(0)));
+const hhmm = () => new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-function status(text, bad) {
-  $('#ghStatus').textContent = text;
-  $('#ghStatus').className = bad ? 'bad' : 'hint';
-  $('#syncBadge').textContent = !ghOn() ? '' : bad ? '⚠ нет синхронизации' : '☁ ' + text;
+// state: off | ok | busy | pending | error
+function status(state, text) {
+  const badge = $('#syncBadge');
+  const labels = {
+    off: '○ Только это устройство',
+    ok: '✓ Сохранено' + (lastSync ? ' ' + lastSync : ''),
+    busy: '⟳ Синхронизация…',
+    pending: '⏳ Есть неотправленные изменения',
+    error: '⚠ Не отправлено — нажмите, чтобы повторить',
+  };
+  badge.textContent = labels[state];
+  badge.className = 'sync sync-' + state;
+  badge.title = text || '';
+  $('#ghStatus').textContent = text || labels[state];
+  $('#ghStatus').className = state === 'error' ? 'bad' : 'hint';
 }
 
-async function ghPull() {
-  status('загрузка…');
+async function ghGet() {
   const r = await fetch(`${ghUrl()}?ref=${encodeURIComponent(gh.branch)}&t=${Date.now()}`, { headers: ghHeaders(), cache: 'no-store' });
-  if (r.status === 404) { ghSha = null; status('файла ещё нет — будет создан'); return null; }
+  if (r.status === 404) return { sha: null, data: null };
   if (!r.ok) throw new Error(`GitHub ${r.status}: ${(await r.json().catch(() => ({}))).message || ''}`);
   const j = await r.json();
-  ghSha = j.sha;
-  const remote = JSON.parse(b64dec(j.content));
-  db = remote;
-  localStorage.setItem(KEY, JSON.stringify(db));
-  renderAll();
-  status('загружено ' + new Date().toLocaleTimeString('ru-RU'));
-  return remote;
+  return { sha: j.sha, data: migrate(JSON.parse(b64dec(j.content))) };
 }
 
-async function ghPush() {
-  pushTimer = null;
-  if (pushing) { pushAgain = true; return; }
-  pushing = true;
+// Загрузить → объединить с локальными → при необходимости отправить.
+// Локальные изменения никогда не затираются: они всегда входят в объединение.
+async function sync() {
+  if (!ghOn()) { status('off'); return; }
+  clearTimeout(syncTimer); syncTimer = null;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true;
+  status('busy');
   try {
-    status('сохранение…');
-    const body = { message: 'Обновление данных производства', content: b64enc(JSON.stringify(db, null, 1)), branch: gh.branch };
-    if (ghSha) body.sha = ghSha;
-    const r = await fetch(ghUrl(), { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
-    if (r.status === 409 || r.status === 422) {
-      // Файл изменили с другого устройства
-      status('данные изменены на другом устройстве', true);
-      if (confirm('Данные на GitHub изменены с другого устройства.\nОК — загрузить их (ваше последнее изменение будет потеряно).\nОтмена — перезаписать их вашими данными.')) {
-        await ghPull();
-      } else {
-        const cur = await fetch(`${ghUrl()}?ref=${encodeURIComponent(gh.branch)}&t=${Date.now()}`, { headers: ghHeaders(), cache: 'no-store' });
-        ghSha = cur.ok ? (await cur.json()).sha : null;
-        pushAgain = true;
-      }
-      return;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const ver = editVer;
+      const { sha, data: remote } = await ghGet();
+      const merged = remote ? merge(db, remote) : db;
+      db = merged;
+      persist();
+      renderAll();
+      const needPush = !remote || JSON.stringify(merged) !== JSON.stringify(remote);
+      if (!needPush) { if (ver === editVer) setDirty(false); break; }
+      const body = { message: 'Обновление данных производства', content: b64enc(JSON.stringify(merged, null, 1)), branch: gh.branch };
+      if (sha) body.sha = sha;
+      const r = await fetch(ghUrl(), { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+      if (r.status === 409 || r.status === 422) continue; // файл успели изменить — объединяем ещё раз
+      if (!r.ok) throw new Error(`GitHub ${r.status}: ${(await r.json().catch(() => ({}))).message || ''}`);
+      if (ver === editVer) setDirty(false);
+      break;
     }
-    if (!r.ok) throw new Error(`GitHub ${r.status}: ${(await r.json().catch(() => ({}))).message || ''}`);
-    ghSha = (await r.json()).content.sha;
-    status('сохранено ' + new Date().toLocaleTimeString('ru-RU'));
+    lastSync = hhmm();
+    status(isDirty() ? 'pending' : 'ok');
   } catch (e) {
-    status('ошибка: ' + e.message, true);
+    status('error', 'Ошибка синхронизации: ' + e.message + '. Данные сохранены на этом устройстве и будут отправлены позже.');
   } finally {
-    pushing = false;
-    if (pushAgain) { pushAgain = false; ghPush(); }
+    syncing = false;
+    if (syncAgain) { syncAgain = false; sync(); }
   }
 }
 
-function schedulePush() {
-  if (!ghOn()) return;
-  clearTimeout(pushTimer);
-  status('есть несохранённые изменения…');
-  pushTimer = setTimeout(ghPush, 1500);
+function scheduleSync() {
+  if (!ghOn()) { status('off'); return; }
+  clearTimeout(syncTimer);
+  status('pending');
+  syncTimer = setTimeout(sync, 1500);
 }
 
 const $ = s => document.querySelector(s);
@@ -138,22 +198,33 @@ document.querySelectorAll('input[type=date]').forEach(i => i.value = today());
 $('#dashMonth').value = today().slice(0, 7);
 
 function table(el, head, rows) {
-  el.innerHTML = `<thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || `<tr><td colspan="${head.length}" class="hint">Нет данных</td></tr>`}</tbody>`;
+  el.innerHTML = `<thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || `<tr class="empty"><td colspan="${head.length}" class="hint">Нет данных</td></tr>`}</tbody>`;
+  // Подписи колонок для карточного вида на телефоне
+  for (const tr of el.tBodies[0].rows) {
+    let col = 0;
+    for (const td of tr.cells) { if (td.colSpan === 1 && head[col]) td.dataset.label = head[col]; col += td.colSpan; }
+  }
 }
 
-function inNorm(cat, param, value) {
-  const n = db.norms.find(x => x.cat === cat && x.param === param);
-  if (!n) return { ok: true, n: null };
-  const bad = (n.min != null && n.min !== '' && value < n.min) || (n.max != null && n.max !== '' && value > n.max);
-  return { ok: !bad, n };
+const hasVal = v => v != null && v !== '';
+const findNorm = (cat, param) => db.norms.find(x => x.cat === cat && x.param === param);
+
+// Статус анализа считается по норме, зафиксированной в записи на момент ввода.
+// Нет нормы или у нормы нет границ — статус «нет нормы», а не «норма».
+function qcStatus(r) {
+  const n = r.norm;
+  if (!n || (!hasVal(n.min) && !hasVal(n.max))) return { st: 'none', n };
+  const bad = (hasVal(n.min) && r.value < n.min) || (hasVal(n.max) && r.value > n.max);
+  return { st: bad ? 'bad' : 'ok', n };
 }
-const normText = n => !n ? '' : [n.min != null && n.min !== '' ? '≥ ' + fmt(n.min) : '', n.max != null && n.max !== '' ? '≤ ' + fmt(n.max) : ''].filter(Boolean).join(', ') + (n.unit ? ' ' + n.unit : '');
+const QC_LABEL = { ok: 'норма', bad: 'отклонение', none: 'нет нормы' };
+const normText = n => !n || (!hasVal(n.min) && !hasVal(n.max)) ? '—' : [hasVal(n.min) ? '≥ ' + fmt(n.min) : '', hasVal(n.max) ? '≤ ' + fmt(n.max) : ''].filter(Boolean).join(', ') + (n.unit ? ' ' + n.unit : '');
 
 /* ---------- Учёт выпуска ---------- */
 $('#prodForm').onsubmit = e => {
   e.preventDefault();
   const d = formData(e.target);
-  db.prod.push({ id: uid(), ...d, plan: d.plan === '' ? null : +d.plan, fact: +d.fact });
+  db.prod.push(touch({ id: uid(), ...d, plan: d.plan === '' ? null : +d.plan, fact: +d.fact }));
   e.target.reset(); e.target.date.value = today();
   save();
 };
@@ -179,6 +250,7 @@ function renderProd() {
 window.del = (coll, id) => {
   if (!confirm('Удалить запись?')) return;
   db[coll] = db[coll].filter(r => r.id !== id);
+  db.deleted[id] = Date.now();
   save();
 };
 
@@ -204,9 +276,9 @@ function renderDash() {
   });
   table($('#dashTable'), ['Направление', 'Партий', 'План', 'Факт', 'Ед.', 'Выполнение'], rows);
 
-  const bad = db.qc.filter(r => !inNorm(r.cat, r.param, r.value).ok)
+  const bad = db.qc.filter(r => qcStatus(r).st === 'bad')
     .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10)
-    .map(r => `<tr class="bad"><td>${r.date}</td><td>${esc(r.cat)}</td><td>${esc(r.batch)}</td><td>${esc(r.param)}</td><td class="num">${fmt(r.value)}</td><td>${normText(inNorm(r.cat, r.param, r.value).n)}</td></tr>`);
+    .map(r => `<tr class="bad"><td>${r.date}</td><td>${esc(r.cat)}</td><td>${esc(r.batch)}</td><td>${esc(r.param)}</td><td class="num">${fmt(r.value)}</td><td>${normText(r.norm)}</td></tr>`);
   table($('#dashQc'), ['Дата', 'Направление', 'Партия', 'Показатель', 'Значение', 'Норма'], bad);
 }
 
@@ -234,7 +306,7 @@ $('#recForm').onsubmit = e => {
     unit: tr.querySelector('.i-unit').value,
     price: tr.querySelector('.i-price').value === '' ? null : +tr.querySelector('.i-price').value,
   })).filter(i => i.name);
-  const rec = { id: d.id || uid(), product: d.product, cat: d.cat, base: +d.base, unit: d.unit, ings };
+  const rec = touch({ id: d.id || uid(), product: d.product, cat: d.cat, base: +d.base, unit: d.unit, ings });
   const idx = db.recipes.findIndex(r => r.id === rec.id);
   idx >= 0 ? db.recipes[idx] = rec : db.recipes.push(rec);
   $('#recReset').onclick();
@@ -280,14 +352,24 @@ function renderCalc() {
 /* ---------- Качество ---------- */
 function fillParams() {
   const f = $('#qcForm');
-  f.param.innerHTML = db.norms.filter(n => n.cat === f.cat.value).map(n => `<option>${esc(n.param)}</option>`).join('');
+  const list = db.norms.filter(n => n.cat === f.cat.value);
+  $('#paramList').innerHTML = list.map(n => `<option value="${esc(n.param)}">`).join('');
+  $('#paramHint').textContent = list.length ? '' : 'Для этого направления нет норм — впишите показатель вручную или добавьте норму ниже.';
+  showNormFor();
+}
+// Подсказка нормы прямо в форме ввода
+function showNormFor() {
+  const f = $('#qcForm'), n = findNorm(f.cat.value, f.param.value.trim());
+  $('#normHint').textContent = f.param.value.trim() ? (n ? 'Норма: ' + normText(n) : 'Нормы для этого показателя нет — статус будет «нет нормы».') : '';
 }
 $('#qcForm').cat.onchange = fillParams;
+$('#qcForm').param.oninput = showNormFor;
 
 $('#qcForm').onsubmit = e => {
   e.preventDefault();
   const d = formData(e.target);
-  db.qc.push({ id: uid(), ...d, value: +d.value });
+  const param = d.param.trim(), n = findNorm(d.cat, param);
+  db.qc.push(touch({ id: uid(), ...d, param, value: +d.value, norm: n ? { min: n.min, max: n.max, unit: n.unit } : null }));
   e.target.value.value = '';
   save();
 };
@@ -295,33 +377,32 @@ $('#qcForm').onsubmit = e => {
 $('#normForm').onsubmit = e => {
   e.preventDefault();
   const d = formData(e.target);
-  const n = { cat: d.cat, param: d.param.trim(), min: d.min === '' ? null : +d.min, max: d.max === '' ? null : +d.max, unit: d.unit };
-  const i = db.norms.findIndex(x => x.cat === n.cat && x.param === n.param);
-  i >= 0 ? db.norms[i] = n : db.norms.push(n);
+  const param = d.param.trim(), old = findNorm(d.cat, param);
+  const n = touch({ id: old ? old.id : normId(d.cat, param), cat: d.cat, param, min: d.min === '' ? null : +d.min, max: d.max === '' ? null : +d.max, unit: d.unit });
+  old ? db.norms[db.norms.indexOf(old)] = n : db.norms.push(n);
   e.target.reset();
   save();
 };
-window.delNorm = i => { if (confirm('Удалить норму?')) { db.norms.splice(i, 1); save(); } };
 
 function renderQc() {
   fillParams();
   table($('#qcTable'), ['Дата', 'Направление', 'Партия', 'Показатель', 'Значение', 'Норма', 'Итог', 'Лаборант', ''],
     db.qc.slice().sort((a, b) => b.date.localeCompare(a.date)).map(r => {
-      const { ok, n } = inNorm(r.cat, r.param, r.value);
-      return `<tr class="${ok ? '' : 'bad'}"><td>${r.date}</td><td>${esc(r.cat)}</td><td>${esc(r.batch)}</td><td>${esc(r.param)}</td>
-        <td class="num">${fmt(r.value)}</td><td>${normText(n)}</td><td>${ok ? '<span class="ok">норма</span>' : 'откл.'}</td><td>${esc(r.who)}</td>
+      const { st, n } = qcStatus(r);
+      return `<tr class="${st === 'bad' ? 'bad' : ''}"><td>${r.date}</td><td>${esc(r.cat)}</td><td>${esc(r.batch)}</td><td>${esc(r.param)}</td>
+        <td class="num">${fmt(r.value)}</td><td>${normText(n)}</td><td><span class="st st-${st}">${QC_LABEL[st]}</span></td><td>${esc(r.who)}</td>
         <td><button class="small" onclick="del('qc','${r.id}')">✕</button></td></tr>`;
     }));
   table($('#normTable'), ['Направление', 'Показатель', 'Мин', 'Макс', 'Ед.', ''],
-    db.norms.map((n, i) => `<tr><td>${esc(n.cat)}</td><td>${esc(n.param)}</td><td class="num">${fmt(n.min)}</td><td class="num">${fmt(n.max)}</td><td>${esc(n.unit)}</td>
-      <td><button class="small" onclick="delNorm(${i})">✕</button></td></tr>`));
+    db.norms.map(n => `<tr><td>${esc(n.cat)}</td><td>${esc(n.param)}</td><td class="num">${fmt(n.min)}</td><td class="num">${fmt(n.max)}</td><td>${esc(n.unit)}</td>
+      <td><button class="small" onclick="del('norms','${n.id}')">✕</button></td></tr>`));
 }
 
 /* ---------- База знаний ---------- */
 $('#kbForm').onsubmit = e => {
   e.preventDefault();
   const d = formData(e.target);
-  const doc = { ...d, id: d.id || uid(), updated: today() };
+  const doc = touch({ ...d, id: d.id || uid(), updated: today() });
   const i = db.kb.findIndex(x => x.id === doc.id);
   i >= 0 ? db.kb[i] = doc : db.kb.push(doc);
   e.target.reset(); e.target.id.value = '';
@@ -358,7 +439,7 @@ $('#importJson').onchange = e => {
   f.text().then(t => {
     const d = JSON.parse(t);
     if (!d.prod || !d.norms) throw new Error('неверный формат');
-    if (confirm('Заменить текущие данные данными из файла?')) { db = d; save(); }
+    if (confirm('Добавить данные из файла к текущим? Совпадающие записи обновятся на более свежие.')) { db = merge(db, migrate(d)); save(); }
   }).catch(err => alert('Ошибка загрузки: ' + err.message));
   e.target.value = '';
 };
@@ -368,40 +449,37 @@ $('#exportCsv').onclick = () => download(`vypusk-${today()}.csv`, csv([
 ]), 'text/csv');
 $('#exportQcCsv').onclick = () => download(`analizy-${today()}.csv`, csv([
   ['Дата', 'Направление', 'Партия', 'Показатель', 'Значение', 'Норма', 'Итог', 'Лаборант'],
-  ...db.qc.map(r => { const { ok, n } = inNorm(r.cat, r.param, r.value); return [r.date, r.cat, r.batch, r.param, r.value, normText(n), ok ? 'норма' : 'отклонение', r.who]; }),
+  ...db.qc.map(r => { const { st, n } = qcStatus(r); return [r.date, r.cat, r.batch, r.param, r.value, normText(n), QC_LABEL[st], r.who]; }),
 ]), 'text/csv');
 
 /* ---------- Настройки GitHub ---------- */
 const ghForm = $('#ghForm');
 ['owner', 'repo', 'branch', 'path', 'token'].forEach(k => ghForm[k].value = gh[k]);
-ghForm.onsubmit = async e => {
+ghForm.onsubmit = e => {
   e.preventDefault();
   gh = formData(ghForm);
   try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (err) { /* пусто */ }
-  if (!ghOn()) { status('введите токен', true); return; }
-  try {
-    const hasLocal = db.prod.length || db.recipes.length || db.qc.length || db.kb.length;
-    const local = db;
-    const remote = await ghPull();
-    if (!remote && hasLocal) { db = local; await ghPush(); }
-    else if (remote && hasLocal && JSON.stringify(remote) !== JSON.stringify(local) &&
-      !confirm('На GitHub уже есть данные — они загружены.\nОК — оставить данные с GitHub.\nОтмена — заменить их данными из этого браузера.')) {
-      db = local; save();
-    }
-  } catch (err) { status('ошибка: ' + err.message, true); }
+  if (!ghOn()) { status('off', 'Введите токен, чтобы включить синхронизацию.'); return; }
+  // Локальные данные и данные на GitHub объединяются — ничего не теряется
+  setDirty(true);
+  sync();
 };
-$('#ghPull').onclick = () => ghOn() && ghPull().catch(err => status('ошибка: ' + err.message, true));
+$('#ghPull').onclick = () => sync();
 $('#ghOff').onclick = () => {
   gh = { ...gh, token: '' }; ghForm.token.value = '';
   try { localStorage.setItem(GH_KEY, JSON.stringify(gh)); } catch (err) { /* пусто */ }
-  status('синхронизация отключена');
+  status('off', 'Синхронизация отключена. Данные остаются на этом устройстве.');
+};
+$('#syncBadge').onclick = () => {
+  if (ghOn()) return sync();
+  document.querySelector('[data-tab=data]').click();
 };
 
 function renderAll() { renderDash(); renderProd(); renderRec(); renderQc(); renderKb(); }
 renderAll();
 
-// Подтягиваем свежие данные при открытии и при возврате на вкладку
-if (ghOn()) ghPull().catch(err => status('ошибка: ' + err.message, true));
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && ghOn() && !pushTimer && !pushing) ghPull().catch(() => {});
-});
+// Синхронизация при открытии, при возврате в приложение, при появлении сети и раз в минуту, если есть неотправленное
+if (ghOn()) sync(); else status('off');
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && ghOn()) sync(); });
+window.addEventListener('online', () => ghOn() && sync());
+setInterval(() => { if (ghOn() && isDirty() && !syncing) sync(); }, 60000);
