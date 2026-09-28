@@ -8,29 +8,42 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8.5 16v-3.5M12 16V8M15.5 16v-5.5"/></symbol>
+  <symbol id="i-prod" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20.5h18"/><path d="M4.5 20.5v-9l4.5 2.8v-2.8l4.5 2.8V4.5h5v16"/><path d="M8 17h1.5M12 17h1.5"/></symbol>
+  <symbol id="i-qc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.5h6M10 3.5v5.8L4.8 18.2A1.8 1.8 0 0 0 6.4 21h11.2a1.8 1.8 0 0 0 1.6-2.8L14 9.3V3.5"/><path d="M7.3 14.5h9.4"/></symbol>
+  <symbol id="i-stock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 7.5 12 3 3.5 7.5v9L12 21l8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M7.8 5.3l8.5 4.5"/></symbol>
+  <symbol id="i-rec" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5V3h6v1.5"/><path d="M8.8 10h6.4M8.8 13.5h6.4M8.8 17h3.6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2.2M9.5 2.8h5M12 2.8V6"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2.2"/><path d="M7 14.5h10v6H7z"/><path d="M17 12h.01"/></symbol>
+  <symbol id="i-kb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19.5V5.5A2.5 2.5 0 0 1 7.5 3h11.5v14H7.5A2.5 2.5 0 0 0 5 19.5a2.5 2.5 0 0 0 2.5 2.5H19v-5"/><path d="M9 7.5h6"/></symbol>
+  <symbol id="i-data" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h9.5M18.5 6.5H20M4 12h3.5M12.5 12H20M4 17.5h11.5M20 17.5h0"/><circle cx="16" cy="6.5" r="2.3"/><circle cx="10" cy="12" r="2.3"/><circle cx="18" cy="17.5" r="2.3"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.5h5V7M6.3 7l.9 12.2A2 2 0 0 0 9.2 21h5.6a2 2 0 0 0 2-1.8L17.7 7M10 11v6M14 11v6"/></symbol>
+</svg>
 <header>
   <div class="topbar">
     <div class="brand"><span class="brand-co">ЗАО «Ереванское пиво»</span><h1>Производство</h1></div>
     <button type="button" id="syncBadge" class="sync"></button>
   </div>
   <nav id="tabs">
-    <button data-tab="dash" class="active"><span class="ic">📊</span><span class="lb">Сводка</span></button>
-    <button data-tab="prod"><span class="ic">🏭</span><span class="lb">Выпуск</span></button>
-    <button data-tab="qc"><span class="ic">🧪</span><span class="lb">Качество</span></button>
-    <button data-tab="stock"><span class="ic">📦</span><span class="lb">Склад</span></button>
-    <button data-tab="rec" class="nav-extra"><span class="ic">📋</span><span class="lb">Рецептуры</span></button>
-    <button data-tab="down" class="nav-extra"><span class="ic">⏱</span><span class="lb">Простои</span></button>
-    <button data-tab="report" class="nav-extra"><span class="ic">🖨</span><span class="lb">Отчёт</span></button>
-    <button data-tab="kb" class="nav-extra"><span class="ic">📚</span><span class="lb">База знаний</span></button>
-    <button data-tab="data" class="nav-extra"><span class="ic">⚙️</span><span class="lb">Данные</span></button>
-    <button type="button" id="moreBtn" class="nav-more"><span class="ic">⋯</span><span class="lb">Ещё</span></button>
+    <button data-tab="dash" class="active"><svg class="ic" aria-hidden="true"><use href="#i-dash"/></svg><span class="lb">Сводка</span></button>
+    <button data-tab="prod"><svg class="ic" aria-hidden="true"><use href="#i-prod"/></svg><span class="lb">Выпуск</span></button>
+    <button data-tab="qc"><svg class="ic" aria-hidden="true"><use href="#i-qc"/></svg><span class="lb">Качество</span></button>
+    <button data-tab="stock"><svg class="ic" aria-hidden="true"><use href="#i-stock"/></svg><span class="lb">Склад</span></button>
+    <button data-tab="rec" class="nav-extra"><svg class="ic" aria-hidden="true"><use href="#i-rec"/></svg><span class="lb">Рецептуры</span></button>
+    <button data-tab="down" class="nav-extra"><svg class="ic" aria-hidden="true"><use href="#i-down"/></svg><span class="lb">Простои</span></button>
+    <button data-tab="report" class="nav-extra"><svg class="ic" aria-hidden="true"><use href="#i-report"/></svg><span class="lb">Отчёт</span></button>
+    <button data-tab="kb" class="nav-extra"><svg class="ic" aria-hidden="true"><use href="#i-kb"/></svg><span class="lb">База знаний</span></button>
+    <button data-tab="data" class="nav-extra"><svg class="ic" aria-hidden="true"><use href="#i-data"/></svg><span class="lb">Данные</span></button>
+    <button type="button" id="moreBtn" class="nav-more"><svg class="ic" aria-hidden="true"><use href="#i-more"/></svg><span class="lb">Ещё</span></button>
   </nav>
   <div id="moreMenu" hidden>
-    <button data-go="rec">📋 Рецептуры</button>
-    <button data-go="down">⏱ Простои линий</button>
-    <button data-go="report">🖨 Отчёт за месяц</button>
-    <button data-go="kb">📚 База знаний</button>
-    <button data-go="data">⚙️ Данные и синхронизация</button>
+    <button data-go="rec"><svg class="ic" aria-hidden="true"><use href="#i-rec"/></svg><span>Рецептуры</span></button>
+    <button data-go="down"><svg class="ic" aria-hidden="true"><use href="#i-down"/></svg><span>Простои линий</span></button>
+    <button data-go="report"><svg class="ic" aria-hidden="true"><use href="#i-report"/></svg><span>Отчёт за месяц</span></button>
+    <button data-go="kb"><svg class="ic" aria-hidden="true"><use href="#i-kb"/></svg><span>База знаний</span></button>
+    <button data-go="data"><svg class="ic" aria-hidden="true"><use href="#i-data"/></svg><span>Данные и синхронизация</span></button>
   </div>
 </header>
 
@@ -159,7 +172,7 @@
       <h2>Отчёт за месяц</h2>
       <div class="actions">
         <input type="month" id="repMonth" aria-label="Месяц">
-        <button type="button" id="repPrint">🖨 Печать / PDF</button>
+        <button type="button" id="repPrint" class="with-ic"><svg class="ic" aria-hidden="true"><use href="#i-report"/></svg><span>Печать / PDF</span></button>
       </div>
     </div>
     <p class="hint no-print">Для PDF нажмите «Печать / PDF» и выберите принтер «Сохранить как PDF».</p>

@@ -544,7 +544,7 @@ function renderQc() {
   $('#normCount').textContent = `(${norms.length})`;
   table($('#normTable'), ['Направление', 'Показатель', 'Норма', ''],
     norms.map(n => `<tr data-id="${n.id}" class="${n.id === normEditId ? 'flash' : ''}"><td>${catTag(n.cat)}</td><td>${esc(n.param)}</td><td>${normText(n)}</td>
-      <td><button type="button" class="icon-btn" data-del-norm="${n.id}" aria-label="Удалить норму">🗑</button></td></tr>`));
+      <td><button type="button" class="icon-btn" data-del-norm="${n.id}" aria-label="Удалить норму"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button></td></tr>`));
 }
 
 /* ---------- Рецептуры ---------- */
@@ -556,7 +556,7 @@ function ingRow(i = {}) {
     <label>Кол-во <input class="i-qty" type="number" step="any" min="0" inputmode="decimal" value="${i.qty ?? ''}" required></label>
     <label>Ед. <select class="i-unit">${['кг', 'г', 'л', 'шт', 'т'].map(u => `<option ${u === i.unit ? 'selected' : ''}>${u}</option>`).join('')}</select></label>
     <label>Цена за ед. <input class="i-price" type="number" step="any" min="0" inputmode="decimal" value="${i.price ?? ''}"></label>
-    <button type="button" class="icon-btn" aria-label="Убрать сырьё">🗑</button>`;
+    <button type="button" class="icon-btn" aria-label="Убрать сырьё"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>`;
   div.querySelector('button').onclick = () => { div.remove(); recTotal(); };
   div.oninput = recTotal;
   $('#ingList').appendChild(div);
@@ -710,9 +710,9 @@ function renderDash() {
   const downMin = db.down.filter(d => d.date.startsWith(m)).reduce((s, d) => s + d.minutes, 0);
   const low = db.mats.filter(x => stockStatus(x) !== 'ok');
   $('#kpis').insertAdjacentHTML('beforeend', `
-    <button type="button" class="kpi kpi-alt" data-go="down" style="--c:#6d5d50"><div class="kpi-name">⏱ Простои</div>
+    <button type="button" class="kpi kpi-alt" data-go="down" style="--c:#6d5d50"><div class="kpi-name"><svg class="ic" aria-hidden="true"><use href="#i-down"/></svg>Простои</div>
       <div class="kpi-val">${fmtHours(downMin)}</div><div class="kpi-foot">${db.down.filter(d => d.date.startsWith(m)).length} случаев за месяц</div></button>
-    <button type="button" class="kpi kpi-alt" data-go="stock" style="--c:${low.length ? 'var(--bad)' : '#6d5d50'}"><div class="kpi-name">📦 Склад</div>
+    <button type="button" class="kpi kpi-alt" data-go="stock" style="--c:${low.length ? 'var(--bad)' : '#6d5d50'}"><div class="kpi-name"><svg class="ic" aria-hidden="true"><use href="#i-stock"/></svg>Склад</div>
       <div class="kpi-val ${low.length ? 'bad' : ''}">${low.length ? low.length + ' <small>ниже минимума</small>' : '✓ <small>в норме</small>'}</div>
       <div class="kpi-foot">${low.slice(0, 3).map(x => esc(x.name)).join(', ') || db.mats.length + ' позиций'}</div></button>`);
   const bad = db.qc.filter(r => r.date.startsWith(m) && qcStatus(r).st === 'bad').sort((a, b) => b.date.localeCompare(a.date));

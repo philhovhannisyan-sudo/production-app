@@ -259,3 +259,19 @@ table.rt th, table.rt td { padding:5px 8px; }
   .bad { color:#b3261e !important; }
   * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 }
+
+/* Монохромные значки */
+svg.ic { width:20px; height:20px; flex:none; vertical-align:-4px; }
+nav#tabs button { display:inline-flex; align-items:center; gap:7px; }
+nav#tabs svg.ic { width:18px; height:18px; margin:0; opacity:.9; }
+nav#tabs button.active svg.ic { opacity:1; stroke-width:2; }
+#moreMenu button { display:flex; align-items:center; gap:12px; }
+#moreMenu svg.ic { color:var(--acc); }
+.kpi-name { display:flex; align-items:center; gap:7px; }
+.kpi-name svg.ic { width:18px; height:18px; color:var(--muted); }
+.with-ic { display:inline-flex; align-items:center; gap:8px; }
+.icon-btn svg.ic { width:18px; height:18px; vertical-align:middle; }
+@media (max-width:600px) {
+  nav#tabs button { gap:3px; }
+  nav#tabs svg.ic { width:24px; height:24px; }
+}
