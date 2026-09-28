@@ -2,172 +2,266 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3b2412">
 <title>Производство — Ереванское пиво</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <div class="topbar"><h1>Производство</h1><button type="button" id="syncBadge" class="sync"></button></div>
+  <div class="topbar">
+    <div class="brand"><span class="brand-co">ЗАО «Ереванское пиво»</span><h1>Производство</h1></div>
+    <button type="button" id="syncBadge" class="sync"></button>
+  </div>
   <nav id="tabs">
-    <button data-tab="dash" class="active">Сводка</button>
-    <button data-tab="prod">Учёт выпуска</button>
-    <button data-tab="rec">Рецептуры</button>
-    <button data-tab="qc">Качество</button>
-    <button data-tab="kb">База знаний</button>
-    <button data-tab="data">Данные</button>
+    <button data-tab="dash" class="active"><span class="ic">📊</span><span class="lb">Сводка</span></button>
+    <button data-tab="prod"><span class="ic">🏭</span><span class="lb">Выпуск</span></button>
+    <button data-tab="qc"><span class="ic">🧪</span><span class="lb">Качество</span></button>
+    <button data-tab="rec"><span class="ic">📋</span><span class="lb">Рецептуры</span></button>
+    <button data-tab="kb" class="nav-extra"><span class="ic">📚</span><span class="lb">База знаний</span></button>
+    <button data-tab="data" class="nav-extra"><span class="ic">⚙️</span><span class="lb">Данные</span></button>
+    <button type="button" id="moreBtn" class="nav-more"><span class="ic">⋯</span><span class="lb">Ещё</span></button>
   </nav>
+  <div id="moreMenu" hidden>
+    <button data-go="kb">📚 База знаний</button>
+    <button data-go="data">⚙️ Данные и синхронизация</button>
+  </div>
 </header>
 
 <main>
   <!-- Сводка -->
   <section id="dash" class="tab active">
-    <div class="row">
-      <label>Месяц <input type="month" id="dashMonth"></label>
+    <div id="syncBanner" class="banner" hidden>
+      <div><b>Работаете с нескольких устройств?</b><br>Подключите синхронизацию — данные будут одинаковыми на телефоне и ноутбуке.</div>
+      <div><button type="button" id="bannerGo">Подключить</button><button type="button" class="btn-secondary" id="bannerLater">Позже</button></div>
     </div>
-    <table class="cards" id="dashTable"></table>
-    <h3>Последние отклонения по качеству</h3>
-    <table class="cards" id="dashQc"></table>
-  </section>
-
-  <!-- Учёт выпуска -->
-  <section id="prod" class="tab">
-    <form id="prodForm" class="card">
-      <h3>Новая запись</h3>
-      <div class="grid">
-        <label>Дата <input type="date" name="date" required></label>
-        <label>Направление <select name="cat" class="catSelect" required></select></label>
-        <label>Продукт <input name="product" list="productList" required></label>
-        <label>№ партии <input name="batch" required></label>
-        <label>Смена <select name="shift"><option>1</option><option>2</option><option>3</option></select></label>
-        <label>План <input type="number" step="any" inputmode="decimal" name="plan"></label>
-        <label>Факт <input type="number" step="any" inputmode="decimal" name="fact" required></label>
-        <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option><option>шт</option></select></label>
-        <label class="wide">Примечание <input name="note"></label>
-      </div>
-      <button>Добавить</button>
-    </form>
-    <div class="row">
-      <label>Фильтр <select id="prodFilter" class="catSelect" data-all="1"></select></label>
-      <input id="prodSearch" placeholder="Поиск по продукту / партии">
+    <div class="section-head">
+      <h2>Сводка</h2>
+      <input type="month" id="dashMonth" aria-label="Месяц">
     </div>
-    <table class="cards" id="prodTable"></table>
-  </section>
-
-  <!-- Рецептуры -->
-  <section id="rec" class="tab">
-    <form id="recForm" class="card">
-      <h3>Рецептура</h3>
-      <input type="hidden" name="id">
-      <div class="grid">
-        <label>Продукт <input name="product" required></label>
-        <label>Направление <select name="cat" class="catSelect" required></select></label>
-        <label>Базовый объём <input type="number" step="any" inputmode="decimal" name="base" required></label>
-        <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option></select></label>
-      </div>
-      <table id="ingTable" class="edit">
-        <thead><tr><th>Сырьё</th><th>Кол-во</th><th>Ед.</th><th>Цена за ед.</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <button type="button" id="addIng">+ Сырьё</button>
-      <button>Сохранить</button>
-      <button type="button" id="recReset">Очистить</button>
-    </form>
-    <table class="cards" id="recTable"></table>
-
+    <div id="kpis" class="kpis"></div>
     <div class="card">
-      <h3>Калькулятор партии</h3>
-      <div class="row">
-        <select id="calcRec"></select>
-        <label>Объём партии <input type="number" step="any" inputmode="decimal" id="calcVol"></label>
-      </div>
-      <table class="cards" id="calcTable"></table>
+      <h3 id="dashQcTitle">Отклонения по качеству</h3>
+      <table class="cards" id="dashQc"></table>
     </div>
+  </section>
+
+  <!-- Выпуск -->
+  <section id="prod" class="tab">
+    <div class="section-head">
+      <div><h2>Учёт выпуска</h2><span class="sub" id="prodCount"></span></div>
+      <button type="button" class="add-btn" data-new="prod">+ Партия</button>
+    </div>
+    <div class="filters">
+      <div class="seg" data-period="prod"></div>
+      <select id="prodFilter" class="catSelect" data-all="1" aria-label="Направление"></select>
+      <input id="prodSearch" type="search" placeholder="Поиск: продукт или партия">
+    </div>
+    <table class="cards clickable" id="prodTable"></table>
   </section>
 
   <!-- Качество -->
   <section id="qc" class="tab">
-    <form id="qcForm" class="card">
-      <h3>Результат анализа</h3>
-      <div class="grid">
-        <label>Дата <input type="date" name="date" required></label>
-        <label>Направление <select name="cat" class="catSelect" required></select></label>
-        <label>№ партии <input name="batch" required></label>
-        <label>Показатель <input name="param" list="paramList" required autocomplete="off"></label>
-        <label>Значение <input type="number" step="any" inputmode="decimal" name="value" required></label>
-        <label>Лаборант <input name="who"></label>
-      </div>
-      <p id="paramHint" class="warn"></p>
-      <p id="normHint" class="hint"></p>
-      <button>Добавить</button>
-    </form>
-    <table class="cards" id="qcTable"></table>
+    <div class="section-head">
+      <div><h2>Контроль качества</h2><span class="sub" id="qcCount"></span></div>
+      <button type="button" class="add-btn" data-new="qc">+ Анализ</button>
+    </div>
+    <div class="filters">
+      <div class="seg" data-period="qc"></div>
+      <select id="qcFilter" class="catSelect" data-all="1" aria-label="Направление"></select>
+      <select id="qcStatusFilter" aria-label="Итог">
+        <option value="">Все итоги</option><option value="bad">Только отклонения</option><option value="none">Нет нормы</option>
+      </select>
+    </div>
+    <table class="cards clickable" id="qcTable"></table>
 
-    <div class="card">
-      <h3>Нормы показателей</h3>
-      <p class="hint">Значения по умолчанию — примерные. Сверьте с вашими ТУ/ГОСТ и технологическими инструкциями.</p>
-      <form id="normForm" class="row">
-        <select name="cat" class="catSelect" required></select>
-        <input name="param" placeholder="Показатель" required>
-        <input name="min" type="number" step="any" inputmode="decimal" placeholder="мин">
-        <input name="max" type="number" step="any" inputmode="decimal" placeholder="макс">
-        <input name="unit" placeholder="ед.">
-        <button>Добавить/изменить</button>
+    <details class="card" id="normsBox">
+      <summary><h3>Нормы показателей <span class="sub" id="normCount"></span></h3></summary>
+      <p class="hint">Значения по умолчанию — примерные. Сверьте с вашими ТУ/ГОСТ и технологическими инструкциями. Изменение нормы не меняет итог уже внесённых анализов.</p>
+      <form id="normForm" class="grid">
+        <label>Направление <select name="cat" class="catSelect" required></select></label>
+        <label>Показатель <input name="param" required></label>
+        <label>Мин <input name="min" type="number" step="any" inputmode="decimal"></label>
+        <label>Макс <input name="max" type="number" step="any" inputmode="decimal"></label>
+        <label>Ед. <input name="unit"></label>
+        <div class="wide actions"><button id="normSave">Добавить норму</button><button type="button" class="btn-secondary" id="normCancel" hidden>Отмена</button></div>
       </form>
-      <table class="cards" id="normTable"></table>
+      <table class="cards clickable" id="normTable"></table>
+    </details>
+  </section>
+
+  <!-- Рецептуры -->
+  <section id="rec" class="tab">
+    <div class="section-head">
+      <div><h2>Рецептуры</h2><span class="sub" id="recCount"></span></div>
+      <button type="button" class="add-btn" data-new="rec">+ Рецептура</button>
+    </div>
+    <table class="cards clickable" id="recTable"></table>
+    <div class="card" id="calcCard">
+      <h3>Калькулятор партии</h3>
+      <div class="grid">
+        <label>Рецептура <select id="calcRec"></select></label>
+        <label>Объём партии <input type="number" step="any" inputmode="decimal" id="calcVol"></label>
+      </div>
+      <p class="hint" id="calcHint">Выберите рецептуру или нажмите «Рассчитать» в строке рецептуры.</p>
+      <table class="cards" id="calcTable"></table>
     </div>
   </section>
 
   <!-- База знаний -->
   <section id="kb" class="tab">
-    <form id="kbForm" class="card">
-      <h3>Документ</h3>
-      <input type="hidden" name="id">
-      <div class="grid">
-        <label>Название <input name="title" required></label>
-        <label>Направление <select name="cat" class="catSelect" data-all="1"></select></label>
-        <label>Тип <select name="type"><option>Технологическая инструкция</option><option>ГОСТ / ТУ</option><option>Регламент</option><option>Санитария / мойка</option><option>Охрана труда</option><option>Отчёт</option><option>Другое</option></select></label>
-        <label>Ссылка <input name="link" type="url"></label>
-        <label class="wide">Текст / заметки <textarea name="text" rows="5"></textarea></label>
-      </div>
-      <button>Сохранить</button>
-    </form>
-    <input id="kbSearch" placeholder="Поиск по документам">
+    <div class="section-head">
+      <div><h2>База знаний</h2><span class="sub" id="kbCount"></span></div>
+      <button type="button" class="add-btn" data-new="kb">+ Документ</button>
+    </div>
+    <div class="filters">
+      <input id="kbSearch" type="search" placeholder="Поиск по документам">
+      <select id="kbFilter" class="catSelect" data-all="1" aria-label="Направление"></select>
+    </div>
     <div id="kbList"></div>
   </section>
 
   <!-- Данные -->
   <section id="data" class="tab">
+    <div class="section-head"><h2>Данные</h2></div>
     <div class="card">
       <h3>Синхронизация через GitHub</h3>
-      <p class="hint">Данные сохраняются в файл в вашем приватном репозитории — одни и те же на телефоне и ноутбуке. На каждом устройстве введите настройки один раз. Токен хранится только в этом браузере.</p>
+      <p class="hint">Данные сохраняются в файл в вашем приватном репозитории — одни и те же на телефоне и ноутбуке. На каждом устройстве введите токен один раз. Токен хранится только в этом браузере.</p>
       <form id="ghForm" class="grid">
-        <label>Владелец <input name="owner" required></label>
-        <label>Репозиторий <input name="repo" required></label>
-        <label>Ветка <input name="branch" required></label>
-        <label>Файл данных <input name="path" required></label>
         <label class="wide">Токен (fine-grained, Contents: Read and write) <input name="token" type="password" autocomplete="off"></label>
-        <div class="wide">
+        <details class="wide"><summary class="hint">Дополнительные настройки</summary>
+          <div class="grid">
+            <label>Владелец <input name="owner" required></label>
+            <label>Репозиторий <input name="repo" required></label>
+            <label>Ветка <input name="branch" required></label>
+            <label>Файл данных <input name="path" required></label>
+          </div>
+        </details>
+        <div class="wide actions">
           <button>Сохранить и подключить</button>
-          <button type="button" id="ghPull">Синхронизировать сейчас</button>
-          <button type="button" id="ghOff">Отключить</button>
+          <button type="button" class="btn-secondary" id="ghPull">Синхронизировать сейчас</button>
+          <button type="button" class="btn-danger" id="ghOff">Отключить</button>
         </div>
       </form>
       <p id="ghStatus" class="hint"></p>
     </div>
     <div class="card">
-      <h3>Резервная копия</h3>
-      <p class="hint">Данные хранятся в этом браузере. Регулярно сохраняйте копию.</p>
-      <button id="exportJson">Скачать копию (JSON)</button>
-      <label class="file">Загрузить копию <input type="file" id="importJson" accept=".json"></label>
-      <button id="exportCsv">Выпуск в CSV (Excel)</button>
-      <button id="exportQcCsv">Анализы в CSV (Excel)</button>
+      <h3>Резервная копия и выгрузка</h3>
+      <div class="actions">
+        <button type="button" class="btn-secondary" id="exportJson">Скачать копию (JSON)</button>
+        <label class="btn-secondary file">Загрузить копию<input type="file" id="importJson" accept=".json"></label>
+        <button type="button" class="btn-secondary" id="exportCsv">Выпуск → Excel (CSV)</button>
+        <button type="button" class="btn-secondary" id="exportQcCsv">Анализы → Excel (CSV)</button>
+      </div>
     </div>
   </section>
 </main>
 
+<!-- Окно: партия -->
+<dialog id="prodDlg">
+  <form id="prodForm" method="dialog">
+    <div class="dlg-head"><h3 id="prodDlgTitle">Новая партия</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label>Продукт <input name="product" list="productList" required autocomplete="off"></label>
+      <label>№ партии <input name="batch" required autocomplete="off"></label>
+      <label>Направление <select name="cat" class="catSelect" required></select></label>
+      <label>Дата <input type="date" name="date" required></label>
+      <label>Смена <select name="shift"><option>1</option><option>2</option><option>3</option></select></label>
+      <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option><option>шт</option></select></label>
+      <label>План <input type="number" step="any" min="0" inputmode="decimal" name="plan"></label>
+      <label>Факт <input type="number" step="any" min="0" inputmode="decimal" name="fact" required></label>
+      <label class="wide">Примечание <input name="note" placeholder="простой, замена сырья…"></label>
+    </div>
+    <div id="prodQcBox" hidden>
+      <h4>Анализы партии</h4>
+      <table class="cards" id="prodQc"></table>
+      <button type="button" class="btn-secondary" id="prodAddQc">+ Анализ для этой партии</button>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="prodSubmit">Добавить</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Окно: анализ -->
+<dialog id="qcDlg">
+  <form id="qcForm" method="dialog">
+    <div class="dlg-head"><h3 id="qcDlgTitle">Новый анализ</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label>№ партии <input name="batch" list="batchList" required autocomplete="off"></label>
+      <label>Направление <select name="cat" class="catSelect" required></select></label>
+      <label>Показатель <input name="param" list="paramList" required autocomplete="off"></label>
+      <label>Значение <input type="number" step="any" inputmode="decimal" name="value" required></label>
+      <label>Дата <input type="date" name="date" required></label>
+      <label>Лаборант <input name="who"></label>
+    </div>
+    <p id="batchHint" class="warn"></p>
+    <p id="paramHint" class="warn"></p>
+    <p id="normHint" class="hint"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="qcSubmit">Добавить</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Окно: рецептура -->
+<dialog id="recDlg" class="wide-dlg">
+  <form id="recForm" method="dialog">
+    <div class="dlg-head"><h3 id="recDlgTitle">Новая рецептура</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label>Продукт <input name="product" required></label>
+      <label>Направление <select name="cat" class="catSelect" required></select></label>
+      <label>Базовый объём <input type="number" step="any" min="0" inputmode="decimal" name="base" required></label>
+      <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option></select></label>
+    </div>
+    <h4>Сырьё</h4>
+    <div id="ingList"></div>
+    <button type="button" class="btn-secondary" id="addIng">+ Сырьё</button>
+    <p class="hint" id="recTotal"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="recSubmit">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Окно: документ -->
+<dialog id="kbDlg" class="wide-dlg">
+  <form id="kbForm" method="dialog">
+    <div class="dlg-head"><h3 id="kbDlgTitle">Новый документ</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label class="wide">Название <input name="title" required></label>
+      <label>Направление <select name="cat" class="catSelect" data-all="1"></select></label>
+      <label>Тип <select name="type"><option>Технологическая инструкция</option><option>ГОСТ / ТУ</option><option>Регламент</option><option>Санитария / мойка</option><option>Охрана труда</option><option>Отчёт</option><option>Другое</option></select></label>
+      <label class="wide">Ссылка <input name="link" type="url" placeholder="https://…"></label>
+      <label class="wide">Текст / заметки <textarea name="text" rows="8"></textarea></label>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="kbSubmit">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" hidden><span id="toastText"></span><button type="button" id="toastUndo" hidden>Отменить</button></div>
+
 <datalist id="productList"></datalist>
 <datalist id="paramList"></datalist>
+<datalist id="batchList"></datalist>
 <script src="app.js"></script>
 </body>
 </html>
