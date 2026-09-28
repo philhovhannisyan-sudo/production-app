@@ -204,3 +204,58 @@ dialog form { padding:0 20px 16px; }
 }
 @media (max-width:360px) { .grid, .kpis { grid-template-columns:1fr; } }
 #dashMonth { width:auto; }
+
+/* Склад, простои */
+.check { flex-direction:row; align-items:center; gap:8px; color:var(--ink); font-size:14px; font-weight:400; min-height:var(--tap); }
+.check input { width:20px; height:20px; min-height:0; margin:0; accent-color:var(--acc); }
+.writeoff { background:var(--acc-soft); border-radius:8px; padding:10px 12px; margin-bottom:6px; }
+.writeoff[hidden] { display:none; }
+.reasons { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:8px 16px; margin-bottom:14px; }
+.reasons:empty { display:none; }
+.reason { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px 12px; }
+.reason-top { display:flex; justify-content:space-between; gap:8px; font-size:14px; }
+.reason .bar { margin-top:6px; height:6px; }
+.kpi-alt { background:#fbf9f5; }
+td .actions { flex-wrap:nowrap; justify-content:flex-end; }
+input[readonly] { background:var(--head); color:var(--muted); }
+
+/* Отчёт */
+.report { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:24px 28px; }
+.report h3 { margin:22px 0 8px; font-size:16px; }
+.report p { margin:6px 0 10px; }
+.rep-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; border-bottom:2px solid var(--brand); padding-bottom:10px; }
+.rep-head .brand-co { color:var(--muted); opacity:1; }
+.rep-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+.rep-kpis div { background:var(--head); border-radius:8px; padding:10px 12px; }
+.rep-kpis span { display:block; font-size:12px; color:var(--muted); }
+.rep-kpis b { font-size:22px; }
+.rep-kpis .bad b { color:var(--bad); }
+.rep-cols { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+table.rt { font-size:13px; margin-bottom:8px; border:1px solid var(--line); }
+table.rt th, table.rt td { padding:5px 8px; }
+.rep-sign { display:flex; justify-content:space-between; margin-top:40px; padding-top:8px; }
+@media (max-width:600px) {
+  .report { padding:14px; overflow-x:auto; }
+  .rep-kpis { grid-template-columns:1fr 1fr; }
+  .rep-cols { grid-template-columns:1fr; }
+  .section-head .actions { width:100%; }
+  .section-head .actions > * { flex:1; }
+  #matTable td .actions { width:100%; }
+  #matTable td .actions button { flex:1; }
+}
+
+/* Печать отчёта */
+@media print {
+  @page { size:A4; margin:14mm 12mm; }
+  body { background:#fff; padding:0; font-size:12px; }
+  header, nav#tabs, #moreMenu, #toast, .no-print, dialog { display:none !important; }
+  main { padding:0; max-width:none; }
+  .tab { display:none !important; }
+  #report { display:block !important; }
+  .report { border:0; padding:0; }
+  table.rt { page-break-inside:auto; }
+  table.rt tr { page-break-inside:avoid; }
+  .report h3 { page-break-after:avoid; }
+  .bad { color:#b3261e !important; }
+  * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}

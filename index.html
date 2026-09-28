@@ -17,12 +17,18 @@
     <button data-tab="dash" class="active"><span class="ic">📊</span><span class="lb">Сводка</span></button>
     <button data-tab="prod"><span class="ic">🏭</span><span class="lb">Выпуск</span></button>
     <button data-tab="qc"><span class="ic">🧪</span><span class="lb">Качество</span></button>
-    <button data-tab="rec"><span class="ic">📋</span><span class="lb">Рецептуры</span></button>
+    <button data-tab="stock"><span class="ic">📦</span><span class="lb">Склад</span></button>
+    <button data-tab="rec" class="nav-extra"><span class="ic">📋</span><span class="lb">Рецептуры</span></button>
+    <button data-tab="down" class="nav-extra"><span class="ic">⏱</span><span class="lb">Простои</span></button>
+    <button data-tab="report" class="nav-extra"><span class="ic">🖨</span><span class="lb">Отчёт</span></button>
     <button data-tab="kb" class="nav-extra"><span class="ic">📚</span><span class="lb">База знаний</span></button>
     <button data-tab="data" class="nav-extra"><span class="ic">⚙️</span><span class="lb">Данные</span></button>
     <button type="button" id="moreBtn" class="nav-more"><span class="ic">⋯</span><span class="lb">Ещё</span></button>
   </nav>
   <div id="moreMenu" hidden>
+    <button data-go="rec">📋 Рецептуры</button>
+    <button data-go="down">⏱ Простои линий</button>
+    <button data-go="report">🖨 Отчёт за месяц</button>
     <button data-go="kb">📚 База знаний</button>
     <button data-go="data">⚙️ Данные и синхронизация</button>
   </div>
@@ -108,6 +114,58 @@
     </div>
   </section>
 
+  <!-- Склад -->
+  <section id="stock" class="tab">
+    <div class="section-head">
+      <div><h2>Склад сырья</h2><span class="sub" id="stockCount"></span></div>
+      <div class="actions">
+        <button type="button" class="btn-secondary" data-new="mat">+ Позиция</button>
+        <button type="button" class="btn-secondary" data-new="out">− Расход</button>
+        <button type="button" class="add-btn" data-new="in">+ Приход</button>
+      </div>
+    </div>
+    <div class="filters">
+      <input id="stockSearch" type="search" placeholder="Поиск сырья">
+      <label class="check"><input type="checkbox" id="stockLow"> Только ниже минимума</label>
+    </div>
+    <table class="cards clickable" id="matTable"></table>
+    <div class="card">
+      <h3>Движение сырья</h3>
+      <div class="filters">
+        <div class="seg" data-period="moves"></div>
+        <select id="moveType" aria-label="Тип"><option value="">Приход и расход</option><option value="in">Только приход</option><option value="out">Только расход</option></select>
+      </div>
+      <table class="cards clickable" id="moveTable"></table>
+    </div>
+  </section>
+
+  <!-- Простои -->
+  <section id="down" class="tab">
+    <div class="section-head">
+      <div><h2>Простои линий</h2><span class="sub" id="downCount"></span></div>
+      <button type="button" class="add-btn" data-new="down">+ Простой</button>
+    </div>
+    <div class="filters">
+      <div class="seg" data-period="down"></div>
+      <select id="downFilter" class="catSelect" data-all="1" aria-label="Направление"></select>
+    </div>
+    <div id="downSummary" class="reasons"></div>
+    <table class="cards clickable" id="downTable"></table>
+  </section>
+
+  <!-- Отчёт -->
+  <section id="report" class="tab">
+    <div class="section-head no-print">
+      <h2>Отчёт за месяц</h2>
+      <div class="actions">
+        <input type="month" id="repMonth" aria-label="Месяц">
+        <button type="button" id="repPrint">🖨 Печать / PDF</button>
+      </div>
+    </div>
+    <p class="hint no-print">Для PDF нажмите «Печать / PDF» и выберите принтер «Сохранить как PDF».</p>
+    <div id="reportBody" class="report"></div>
+  </section>
+
   <!-- База знаний -->
   <section id="kb" class="tab">
     <div class="section-head">
@@ -171,7 +229,11 @@
       <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option><option>шт</option></select></label>
       <label>План <input type="number" step="any" min="0" inputmode="decimal" name="plan"></label>
       <label>Факт <input type="number" step="any" min="0" inputmode="decimal" name="fact" required></label>
-      <label class="wide">Примечание <input name="note" placeholder="простой, замена сырья…"></label>
+      <label class="wide">Примечание <input name="note" placeholder="замена сырья, особенности…"></label>
+    </div>
+    <div id="writeOffBox" class="writeoff" hidden>
+      <label class="check"><input type="checkbox" name="writeoff" checked> Списать сырьё со склада по рецептуре</label>
+      <div class="hint" id="writeOffPreview"></div>
     </div>
     <div id="prodQcBox" hidden>
       <h4>Анализы партии</h4>
@@ -257,11 +319,82 @@
   </form>
 </dialog>
 
+<!-- Окно: позиция склада -->
+<dialog id="matDlg">
+  <form id="matForm" method="dialog">
+    <div class="dlg-head"><h3 id="matDlgTitle">Новая позиция</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label class="wide">Название <input name="name" required placeholder="Солод ячменный"></label>
+      <label>Ед. <select name="unit"><option>кг</option><option>т</option><option>г</option><option>л</option><option>шт</option></select></label>
+      <label>Мин. остаток <input type="number" step="any" min="0" inputmode="decimal" name="min"></label>
+      <label class="wide">Примечание <input name="note" placeholder="поставщик, место хранения…"></label>
+    </div>
+    <p class="hint">Название должно совпадать с названием сырья в рецептурах — тогда при выпуске партии сырьё списывается автоматически.</p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="matSubmit">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Окно: приход / расход -->
+<dialog id="moveDlg">
+  <form id="moveForm" method="dialog">
+    <div class="dlg-head"><h3 id="moveDlgTitle">Приход</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label>Операция <select name="type"><option value="in">Приход</option><option value="out">Расход</option></select></label>
+      <label>Дата <input type="date" name="date" required></label>
+      <label class="wide">Сырьё <select name="matId" required></select></label>
+      <label>Количество <input type="number" step="any" min="0" inputmode="decimal" name="qty" required></label>
+      <label>Ед. <input name="unitShow" readonly tabindex="-1"></label>
+      <label class="wide">Примечание <input name="note" placeholder="накладная №, поставщик, причина списания…"></label>
+    </div>
+    <p class="hint" id="moveHint"></p>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="moveSubmit">Сохранить</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Окно: простой -->
+<dialog id="downDlg">
+  <form id="downForm" method="dialog">
+    <div class="dlg-head"><h3 id="downDlgTitle">Новый простой</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
+    <input type="hidden" name="id">
+    <div class="grid">
+      <label>Линия <input name="line" list="lineList" required autocomplete="off" placeholder="Линия розлива 1"></label>
+      <label>Направление <select name="cat" class="catSelect" required></select></label>
+      <label>Дата <input type="date" name="date" required></label>
+      <label>Смена <select name="shift"><option>1</option><option>2</option><option>3</option></select></label>
+      <label>Причина <select name="reason" required>
+        <option>Поломка оборудования</option><option>Мойка / CIP</option><option>Переналадка / смена продукта</option>
+        <option>Нет сырья</option><option>Нет тары / упаковки</option><option>Плановое ТО</option>
+        <option>Энергоснабжение</option><option>Нет персонала</option><option>Другое</option></select></label>
+      <label>Длительность, мин <input type="number" step="1" min="1" inputmode="numeric" name="minutes" required></label>
+      <label class="wide">Описание <input name="note" placeholder="что случилось, что сделано"></label>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-danger" data-del hidden>Удалить</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-secondary" data-close>Отмена</button>
+      <button id="downSubmit">Добавить</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="toast" hidden><span id="toastText"></span><button type="button" id="toastUndo" hidden>Отменить</button></div>
 
 <datalist id="productList"></datalist>
 <datalist id="paramList"></datalist>
 <datalist id="batchList"></datalist>
+<datalist id="lineList"></datalist>
 <script src="app.js"></script>
 </body>
 </html>

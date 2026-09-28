@@ -22,7 +22,7 @@ const DEFAULT_NORMS = [
 
 const KEY = 'yerevan-production-v1';
 const DIRTY_KEY = KEY + '-dirty';
-const COLLS = ['prod', 'recipes', 'qc', 'norms', 'kb'];
+const COLLS = ['prod', 'recipes', 'qc', 'norms', 'kb', 'mats', 'moves', 'down'];
 const normId = (cat, param) => 'n-' + cat + '-' + param;
 
 // Приводит данные любой версии к текущему формату
@@ -200,7 +200,7 @@ function setPref(k, v) { prefs[k] = v; try { localStorage.setItem(PREF_KEY, JSON
 /* ---------- Навигация ---------- */
 function go(tab) {
   $$('#tabs button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  $('#moreBtn').classList.toggle('active', tab === 'kb' || tab === 'data');
+  $('#moreBtn').classList.toggle('active', ['rec', 'down', 'report', 'kb', 'data'].includes(tab));
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === tab));
   $('#moreMenu').hidden = true;
   setPref('tab', tab);
@@ -219,7 +219,7 @@ $('#dashMonth').value = today().slice(0, 7);
 
 /* ---------- Фильтр периода ---------- */
 const PERIODS = [['day', 'Сегодня'], ['week', 'Неделя'], ['month', 'Месяц'], ['all', 'Всё']];
-const period = { prod: prefs.period_prod || 'week', qc: prefs.period_qc || 'week' };
+const period = { prod: prefs.period_prod || 'week', qc: prefs.period_qc || 'week', moves: prefs.period_moves || 'month', down: prefs.period_down || 'month' };
 $$('.seg[data-period]').forEach(el => {
   const key = el.dataset.period;
   el.innerHTML = PERIODS.map(([v, l]) => `<button type="button" data-v="${v}">${l}</button>`).join('');
@@ -288,15 +288,16 @@ function toast(text, undo) {
 }
 function hideToast() { $('#toast').hidden = true; }
 
-function removeRecord(coll, id, label) {
-  const i = db[coll].findIndex(r => r.id === id);
-  if (i < 0) return;
-  const [rec] = db[coll].splice(i, 1);
-  db.deleted[id] = Date.now();
+// Удаление с возможностью отмены; linked — связанные записи, удаляемые вместе с основной
+function removeRecord(coll, id, label, linked = []) {
+  const main = db[coll].find(r => r.id === id);
+  if (!main) return;
+  const items = [[coll, main], ...linked];
+  const now = Date.now();
+  for (const [c, r] of items) { db[c] = db[c].filter(x => x.id !== r.id); db.deleted[r.id] = now; }
   save();
   toast(label + ' удалено', () => {
-    delete db.deleted[id];
-    db[coll].splice(Math.min(i, db[coll].length), 0, touch(rec));
+    for (const [c, r] of items) { delete db.deleted[r.id]; db[c].push(touch(r)); }
     save();
   });
 }
@@ -307,7 +308,7 @@ $$('dialog').forEach(d => {
   d.querySelectorAll('[data-close]').forEach(b => b.onclick = () => d.close());
   d.addEventListener('click', e => { if (e.target === d) d.close(); }); // клик по фону
 });
-$$('[data-new]').forEach(b => b.onclick = () => ({ prod: () => openProd(), qc: () => openQc(), rec: () => openRec(), kb: () => openKb() })[b.dataset.new]());
+$$('[data-new]').forEach(b => b.onclick = () => ({ prod: () => openProd(), qc: () => openQc(), rec: () => openRec(), kb: () => openKb(), mat: () => openMat(), in: () => openMove(null, 'in'), out: () => openMove(null, 'out'), down: () => openDown() })[b.dataset.new]());
 
 /* ---------- Выпуск ---------- */
 const prodForm = $('#prodForm');
@@ -329,6 +330,7 @@ function openProd(id) {
   prodForm.querySelector('[data-del]').hidden = !r;
   $('#prodQcBox').hidden = !r;
   if (r) renderProdQc(r);
+  updateWriteOff();
   openDlg($('#prodDlg'));
 }
 function renderProdQc(r) {
@@ -342,23 +344,39 @@ function renderProdQc(r) {
 prodForm.product.addEventListener('change', () => {
   const rec = db.recipes.find(r => r.product.toLowerCase() === prodForm.product.value.trim().toLowerCase());
   if (rec && !prodForm.id.value) { prodForm.cat.value = rec.cat; prodForm.unit.value = rec.unit; }
+  updateWriteOff();
 });
+prodForm.fact.addEventListener('input', updateWriteOff);
+prodForm.unit.addEventListener('change', updateWriteOff);
 prodForm.onsubmit = e => {
   e.preventDefault();
   const d = formData(prodForm);
+  delete d.writeoff;
   const rec = touch({ ...d, id: d.id || uid(), product: d.product.trim(), batch: d.batch.trim(), plan: num(d.plan), fact: num(d.fact) });
   const i = db.prod.findIndex(x => x.id === rec.id);
   i >= 0 ? db.prod[i] = rec : db.prod.push(rec);
+  let woNote = '';
+  if (i < 0 && !$('#writeOffBox').hidden && prodForm.writeoff.checked) {
+    const { lines, skipped } = writeOffPlan(rec);
+    lines.forEach(l => {
+      let m = l.mat;
+      if (!m) { m = touch({ id: uid(), name: l.name, unit: l.unit, min: null, note: 'создано при списании' }); db.mats.push(m); }
+      db.moves.push(touch({ id: uid(), type: 'out', matId: m.id, qty: l.qty, date: rec.date, note: `Партия ${rec.batch}`, prodId: rec.id }));
+    });
+    woNote = lines.length ? ` · списано ${lines.length} поз. сырья` : '';
+    if (skipped.length) woNote += ` · не списано: ${skipped.join(', ')}`;
+  }
   setPref('cat', d.cat); setPref('shift', d.shift); setPref('unit', d.unit);
   flashId = rec.id;
   $('#prodDlg').close();
   save();
-  toast(i >= 0 ? `Партия ${rec.batch} сохранена` : `Партия ${rec.batch} добавлена`);
+  toast((i >= 0 ? `Партия ${rec.batch} сохранена` : `Партия ${rec.batch} добавлена`) + woNote);
 };
 prodForm.querySelector('[data-del]').onclick = () => {
   const id = prodForm.id.value, r = db.prod.find(x => x.id === id);
   $('#prodDlg').close();
-  removeRecord('prod', id, `Партия ${r.batch}`);
+  const linked = db.moves.filter(m => m.prodId === id).map(m => ['moves', m]);
+  removeRecord('prod', id, `Партия ${r.batch}` + (linked.length ? ' и её списание сырья' : ''), linked);
 };
 $('#prodAddQc').onclick = () => {
   const b = prodForm.batch.value, c = prodForm.cat.value;
@@ -689,6 +707,14 @@ function renderDash() {
       <div class="kpi-foot">${list.length} ${plural(list.length, 'партия', 'партии', 'партий')}${qcBad ? ` · <span class="bad">⚠ ${qcBad} откл.</span>` : ''}</div>
     </button>`;
   }).join('');
+  const downMin = db.down.filter(d => d.date.startsWith(m)).reduce((s, d) => s + d.minutes, 0);
+  const low = db.mats.filter(x => stockStatus(x) !== 'ok');
+  $('#kpis').insertAdjacentHTML('beforeend', `
+    <button type="button" class="kpi kpi-alt" data-go="down" style="--c:#6d5d50"><div class="kpi-name">⏱ Простои</div>
+      <div class="kpi-val">${fmtHours(downMin)}</div><div class="kpi-foot">${db.down.filter(d => d.date.startsWith(m)).length} случаев за месяц</div></button>
+    <button type="button" class="kpi kpi-alt" data-go="stock" style="--c:${low.length ? 'var(--bad)' : '#6d5d50'}"><div class="kpi-name">📦 Склад</div>
+      <div class="kpi-val ${low.length ? 'bad' : ''}">${low.length ? low.length + ' <small>ниже минимума</small>' : '✓ <small>в норме</small>'}</div>
+      <div class="kpi-foot">${low.slice(0, 3).map(x => esc(x.name)).join(', ') || db.mats.length + ' позиций'}</div></button>`);
   const bad = db.qc.filter(r => r.date.startsWith(m) && qcStatus(r).st === 'bad').sort((a, b) => b.date.localeCompare(a.date));
   $('#dashQcTitle').innerHTML = `Отклонения по качеству за месяц ${bad.length ? `<span class="st st-bad">${bad.length}</span>` : '<span class="st st-ok">нет</span>'}`;
   table($('#dashQc'), ['Дата', 'Партия', 'Показатель', 'Значение', 'Норма', 'Направление'],
@@ -699,6 +725,7 @@ function renderDash() {
 // Карточка направления открывает журнал выпуска с этим фильтром
 $('#kpis').onclick = e => {
   const k = e.target.closest('.kpi'); if (!k) return;
+  if (k.dataset.go) return go(k.dataset.go);
   $('#prodFilter').value = k.dataset.cat; period.prod = 'month';
   $$('.seg[data-period=prod] button').forEach(b => b.classList.toggle('on', b.dataset.v === 'month'));
   go('prod'); renderProd();
@@ -755,8 +782,315 @@ $('#ghOff').onclick = () => {
 };
 $('#syncBadge').onclick = () => { if (ghOn()) sync(); else go('data'); };
 
+/* ---------- Склад сырья ---------- */
+const MASS = { 'г': 0.001, 'кг': 1, 'т': 1000 };
+const VOL = { 'л': 1, 'дал': 10, 'гл': 100 };
+// Перевод количества между единицами; null — единицы несовместимы
+function conv(q, from, to) {
+  if (q == null) return null;
+  if (from === to) return q;
+  if (MASS[from] && MASS[to]) return q * MASS[from] / MASS[to];
+  if (VOL[from] && VOL[to]) return q * VOL[from] / VOL[to];
+  return null;
+}
+const matByName = name => db.mats.find(m => m.name.trim().toLowerCase() === String(name).trim().toLowerCase());
+const stockOf = id => db.moves.reduce((s, m) => m.matId === id ? s + (m.type === 'in' ? m.qty : -m.qty) : s, 0);
+function stockStatus(m) {
+  const q = stockOf(m.id);
+  if (q < 0) return 'neg';
+  if (hasVal(m.min) && q < m.min) return 'low';
+  return 'ok';
+}
+const STOCK_TAG = { ok: '<span class="st st-ok">в норме</span>', low: '<span class="st st-bad">ниже минимума</span>', neg: '<span class="st st-bad">отрицательный</span>' };
+
+// Что спишется со склада при выпуске партии по рецептуре
+function writeOffPlan(p) {
+  const rec = db.recipes.find(r => r.product.toLowerCase() === String(p.product).trim().toLowerCase());
+  if (!rec || !p.fact) return { rec: null, lines: [], skipped: [] };
+  const inRecUnit = conv(p.fact, p.unit, rec.unit);
+  const ratio = inRecUnit == null ? null : inRecUnit / rec.base;
+  if (!ratio || !isFinite(ratio)) return { rec, lines: [], skipped: [`единица партии (${p.unit}) не совпадает с рецептурой (${rec.unit})`] };
+  const lines = [], skipped = [];
+  for (const i of rec.ings) {
+    const mat = matByName(i.name), unit = mat ? mat.unit : i.unit;
+    const qty = conv(i.qty * ratio, i.unit, unit);
+    if (qty == null) { skipped.push(`${i.name} (${i.unit} → ${unit})`); continue; }
+    lines.push({ name: i.name, mat, unit, qty: Math.round(qty * 1000) / 1000 });
+  }
+  return { rec, lines, skipped };
+}
+function updateWriteOff() {
+  const isNew = !prodForm.id.value;
+  const plan = writeOffPlan({ product: prodForm.product.value, fact: num(prodForm.fact.value), unit: prodForm.unit.value });
+  $('#writeOffBox').hidden = !isNew || !plan.rec;
+  if (!plan.rec) return;
+  $('#writeOffPreview').textContent = plan.lines.length
+    ? plan.lines.map(l => `${l.name} ${fmt(l.qty)} ${l.unit}${l.mat ? '' : ' (новая позиция)'}`).join(' · ') + (plan.skipped.length ? ' · не спишется: ' + plan.skipped.join(', ') : '')
+    : (plan.skipped.join(', ') || 'Введите «Факт», чтобы увидеть расход сырья.');
+}
+
+const matForm = $('#matForm');
+function openMat(id) {
+  const m = id && db.mats.find(x => x.id === id);
+  matForm.reset();
+  matForm.id.value = m ? m.id : '';
+  if (m) { matForm.name.value = m.name; matForm.unit.value = m.unit; matForm.min.value = m.min ?? ''; matForm.note.value = m.note || ''; }
+  $('#matDlgTitle').textContent = m ? `${m.name} · остаток ${fmt(stockOf(m.id))} ${m.unit}` : 'Новая позиция';
+  matForm.querySelector('[data-del]').hidden = !m;
+  openDlg($('#matDlg'));
+}
+matForm.onsubmit = e => {
+  e.preventDefault();
+  const d = formData(matForm), name = d.name.trim();
+  const same = matByName(name);
+  if (same && same.id !== d.id) { alert(`Позиция «${same.name}» уже есть.`); return; }
+  const old = d.id && db.mats.find(x => x.id === d.id);
+  if (old && old.unit !== d.unit && db.moves.some(m => m.matId === old.id) &&
+    !confirm(`Сменить единицу с «${old.unit}» на «${d.unit}»? Уже внесённые количества не пересчитываются.`)) return;
+  const m = touch({ id: d.id || uid(), name, unit: d.unit, min: num(d.min), note: d.note });
+  const i = db.mats.findIndex(x => x.id === m.id);
+  i >= 0 ? db.mats[i] = m : db.mats.push(m);
+  flashId = m.id;
+  $('#matDlg').close();
+  save();
+  toast(`«${name}» сохранено`);
+};
+matForm.querySelector('[data-del]').onclick = () => {
+  const id = matForm.id.value, m = db.mats.find(x => x.id === id);
+  const linked = db.moves.filter(x => x.matId === id).map(x => ['moves', x]);
+  if (linked.length && !confirm(`У «${m.name}» есть ${linked.length} движений. Удалить позицию вместе с ними?`)) return;
+  $('#matDlg').close();
+  removeRecord('mats', id, `«${m.name}»`, linked);
+};
+
+const moveForm = $('#moveForm');
+function fillMatSelect(sel) {
+  moveForm.matId.innerHTML = db.mats.slice().sort((a, b) => a.name.localeCompare(b.name))
+    .map(m => `<option value="${m.id}">${esc(m.name)} (${fmt(stockOf(m.id))} ${esc(m.unit)})</option>`).join('');
+  if (sel) moveForm.matId.value = sel;
+}
+function moveHint() {
+  const m = db.mats.find(x => x.id === moveForm.matId.value);
+  moveForm.unitShow.value = m ? m.unit : '';
+  $('#moveDlgTitle').textContent = moveForm.type.value === 'in' ? 'Приход сырья' : 'Расход сырья';
+  if (!m) { $('#moveHint').textContent = ''; return; }
+  const q = num(moveForm.qty.value) || 0, cur = stockOf(m.id);
+  const old = moveForm.id.value && db.moves.find(x => x.id === moveForm.id.value);
+  const base = old ? cur - (old.type === 'in' ? old.qty : -old.qty) : cur;
+  const after = base + (moveForm.type.value === 'in' ? q : -q);
+  $('#moveHint').textContent = `Остаток: ${fmt(base)} → ${fmt(after)} ${m.unit}` + (after < 0 ? ' ⚠ станет отрицательным' : hasVal(m.min) && after < m.min ? ' ⚠ ниже минимума' : '');
+}
+moveForm.matId.onchange = moveForm.type.onchange = moveHint;
+moveForm.qty.oninput = moveHint;
+function openMove(id, type, matId) {
+  if (!id && !db.mats.length) { toast('Сначала добавьте позицию сырья'); openMat(); return; }
+  const mv = id && db.moves.find(x => x.id === id);
+  moveForm.reset();
+  moveForm.id.value = mv ? mv.id : '';
+  fillMatSelect(mv ? mv.matId : matId);
+  if (mv) { moveForm.type.value = mv.type; moveForm.date.value = mv.date; moveForm.qty.value = mv.qty; moveForm.note.value = mv.note || ''; }
+  else { moveForm.type.value = type || 'in'; moveForm.date.value = today(); }
+  moveForm.querySelector('[data-del]').hidden = !mv;
+  moveHint();
+  openDlg($('#moveDlg'));
+  if (!mv && matId) moveForm.qty.focus();
+}
+moveForm.onsubmit = e => {
+  e.preventDefault();
+  const d = formData(moveForm), old = d.id && db.moves.find(x => x.id === d.id);
+  const mv = touch({ id: d.id || uid(), type: d.type, matId: d.matId, qty: +d.qty, date: d.date, note: d.note, prodId: old ? old.prodId : undefined });
+  if (!mv.prodId) delete mv.prodId;
+  const i = db.moves.findIndex(x => x.id === mv.id);
+  i >= 0 ? db.moves[i] = mv : db.moves.push(mv);
+  flashId = mv.id;
+  $('#moveDlg').close();
+  save();
+  const m = db.mats.find(x => x.id === mv.matId);
+  toast(`${mv.type === 'in' ? 'Приход' : 'Расход'}: ${m.name} ${fmt(mv.qty)} ${m.unit} · остаток ${fmt(stockOf(m.id))}`);
+};
+moveForm.querySelector('[data-del]').onclick = () => {
+  const id = moveForm.id.value;
+  $('#moveDlg').close();
+  removeRecord('moves', id, 'Движение');
+};
+$('#stockSearch').oninput = $('#stockLow').onchange = $('#moveType').onchange = () => renderStock();
+rowClicks($('#matTable'), openMat);
+rowClicks($('#moveTable'), id => openMove(id));
+$('#matTable').addEventListener('click', e => {
+  const b = e.target.closest('[data-move]'); if (!b) return;
+  openMove(null, b.dataset.move, b.closest('tr').dataset.id);
+});
+
+function renderStock() {
+  const q = $('#stockSearch').value.trim().toLowerCase(), onlyLow = $('#stockLow').checked;
+  const since = daysAgo(29);
+  const mats = db.mats.filter(m => (!q || m.name.toLowerCase().includes(q)) && (!onlyLow || stockStatus(m) !== 'ok'))
+    .sort((a, b) => (stockStatus(a) === 'ok') - (stockStatus(b) === 'ok') || a.name.localeCompare(b.name));
+  const low = db.mats.filter(m => stockStatus(m) !== 'ok').length;
+  $('#stockCount').textContent = db.mats.length ? `${db.mats.length} поз.${low ? ` · ${low} ниже минимума` : ''}` : '';
+  table($('#matTable'), ['Сырьё', 'Остаток', 'Мин.', 'Статус', 'Расход за 30 дн.', ''],
+    mats.map(m => {
+      const st = stockStatus(m);
+      const used = db.moves.filter(x => x.matId === m.id && x.type === 'out' && x.date >= since).reduce((s, x) => s + x.qty, 0);
+      return `<tr data-id="${m.id}" class="${st !== 'ok' ? 'bad' : ''} ${m.id === flashId ? 'flash' : ''}"><td><b>${esc(m.name)}</b></td>
+        <td class="num"><b>${fmt(stockOf(m.id))}</b> ${esc(m.unit)}</td><td class="num">${hasVal(m.min) ? fmt(m.min) + ' ' + esc(m.unit) : ''}</td>
+        <td>${STOCK_TAG[st]}</td><td class="num">${used ? fmt(used) + ' ' + esc(m.unit) : ''}</td>
+        <td><div class="actions"><button type="button" class="btn-secondary btn-sm" data-move="in">+ Приход</button><button type="button" class="btn-secondary btn-sm" data-move="out">− Расход</button></div></td></tr>`;
+    }), db.mats.length ? 'Ничего не найдено' : 'Позиций пока нет. Нажмите «+ Позиция», чтобы добавить сырьё (солод, хмель, сахар, концентраты, CO₂, тара…).');
+  const type = $('#moveType').value;
+  const moves = db.moves.filter(x => inPeriod(x.date, period.moves) && (!type || x.type === type))
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.upd || 0) - (a.upd || 0));
+  table($('#moveTable'), ['Дата', 'Операция', 'Сырьё', 'Количество', 'Основание'],
+    moves.map(x => {
+      const m = db.mats.find(y => y.id === x.matId);
+      return `<tr data-id="${x.id}" class="${x.id === flashId ? 'flash' : ''}"><td>${fmtDate(x.date)}</td>
+        <td>${x.type === 'in' ? '<span class="st st-ok">приход</span>' : '<span class="st st-none">расход</span>'}</td>
+        <td>${esc(m ? m.name : '—')}</td><td class="num">${x.type === 'in' ? '+' : '−'}${fmt(x.qty)} ${esc(m ? m.unit : '')}</td><td>${esc(x.note)}</td></tr>`;
+    }), 'Движений за период нет');
+}
+
+/* ---------- Простои ---------- */
+const fmtHours = min => !min ? '0 ч' : min < 60 ? `${min} мин` : `${fmt(Math.floor(min / 60))} ч${min % 60 ? ' ' + (min % 60) + ' мин' : ''}`;
+const downForm = $('#downForm');
+function openDown(id) {
+  const d = id && db.down.find(x => x.id === id);
+  downForm.reset();
+  downForm.id.value = d ? d.id : '';
+  if (d) ['line', 'cat', 'date', 'shift', 'reason', 'minutes', 'note'].forEach(k => downForm[k].value = d[k] ?? '');
+  else {
+    downForm.date.value = today();
+    downForm.cat.value = prefs.cat || CATS[0];
+    downForm.shift.value = prefs.shift || '1';
+    downForm.line.value = prefs.line || '';
+  }
+  $('#downDlgTitle').textContent = d ? `Простой · ${d.line}` : 'Новый простой';
+  $('#downSubmit').textContent = d ? 'Сохранить' : 'Добавить';
+  downForm.querySelector('[data-del]').hidden = !d;
+  openDlg($('#downDlg'));
+}
+downForm.onsubmit = e => {
+  e.preventDefault();
+  const d = formData(downForm);
+  const rec = touch({ ...d, id: d.id || uid(), line: d.line.trim(), minutes: Math.round(+d.minutes) });
+  const i = db.down.findIndex(x => x.id === rec.id);
+  i >= 0 ? db.down[i] = rec : db.down.push(rec);
+  setPref('line', rec.line); setPref('cat', rec.cat); setPref('shift', rec.shift);
+  flashId = rec.id;
+  $('#downDlg').close();
+  save();
+  toast(`Простой ${fmtHours(rec.minutes)} · ${rec.reason}`);
+};
+downForm.querySelector('[data-del]').onclick = () => {
+  const id = downForm.id.value;
+  $('#downDlg').close();
+  removeRecord('down', id, 'Простой');
+};
+$('#downFilter').onchange = () => renderDown();
+rowClicks($('#downTable'), openDown);
+
+function downByReason(list) {
+  const by = {};
+  list.forEach(d => by[d.reason] = (by[d.reason] || 0) + d.minutes);
+  return Object.entries(by).sort((a, b) => b[1] - a[1]);
+}
+function renderDown() {
+  const cat = $('#downFilter').value;
+  const list = db.down.filter(d => inPeriod(d.date, period.down) && (!cat || d.cat === cat))
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.upd || 0) - (a.upd || 0));
+  const total = list.reduce((s, d) => s + d.minutes, 0);
+  $('#downCount').textContent = list.length ? `${list.length} · всего ${fmtHours(total)}` : '';
+  const reasons = downByReason(list);
+  $('#downSummary').innerHTML = reasons.length ? reasons.map(([r, m]) =>
+    `<div class="reason"><div class="reason-top"><span>${esc(r)}</span><b>${fmtHours(m)}</b></div><div class="bar"><i class="low" style="width:${m / reasons[0][1] * 100}%"></i></div></div>`).join('') : '';
+  table($('#downTable'), ['Дата', 'Линия', 'Причина', 'Длительность', 'Смена', 'Направление', 'Описание'],
+    list.map(d => `<tr data-id="${d.id}" class="${d.id === flashId ? 'flash' : ''}"><td>${fmtDate(d.date)}</td><td><b>${esc(d.line)}</b></td><td>${esc(d.reason)}</td>
+      <td class="num"><b>${fmtHours(d.minutes)}</b></td><td>${esc(d.shift)}</td><td>${catTag(d.cat)}</td><td>${esc(d.note)}</td></tr>`),
+    emptyText(period.down, 'Простоев', '«+ Простой»'));
+  $('#lineList').innerHTML = [...new Set(db.down.map(d => d.line))].map(l => `<option value="${esc(l)}">`).join('');
+}
+
+/* ---------- Отчёт за месяц ---------- */
+const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+$('#repMonth').value = today().slice(0, 7);
+$('#repMonth').onchange = () => renderReport();
+$('#repPrint').onclick = () => window.print();
+function rTable(head, rows, empty = 'нет данных') {
+  return `<table class="rt"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || `<tr><td colspan="${head.length}" class="hint">${empty}</td></tr>`}</tbody></table>`;
+}
+function renderReport() {
+  const m = $('#repMonth').value; if (!m) return;
+  const [y, mo] = m.split('-');
+  const prod = db.prod.filter(r => r.date.startsWith(m));
+  const qc = db.qc.filter(r => r.date.startsWith(m));
+  const down = db.down.filter(r => r.date.startsWith(m));
+  const pctCell = (f, p) => { const v = p ? f / p * 100 : null; return `<td class="num ${v != null && v < 95 ? 'bad' : ''}">${v == null ? '—' : fmt(v) + '%'}</td>`; };
+
+  // 1. Выпуск по направлениям
+  const catRows = [];
+  CATS.forEach(c => {
+    const by = {};
+    prod.filter(r => r.cat === c).forEach(r => { const u = by[r.unit] ||= { n: 0, plan: 0, fact: 0 }; u.n++; u.plan += r.plan || 0; u.fact += r.fact || 0; });
+    const e = Object.entries(by);
+    if (!e.length) catRows.push(`<tr><td>${c}</td><td class="num">0</td><td></td><td></td><td></td><td></td></tr>`);
+    e.forEach(([u, v]) => catRows.push(`<tr><td>${c}</td><td class="num">${v.n}</td><td class="num">${v.plan ? fmt(v.plan) : '—'}</td><td class="num"><b>${fmt(v.fact)}</b></td><td>${esc(u)}</td>${pctCell(v.fact, v.plan)}</tr>`));
+  });
+  // 2. По продуктам
+  const byProd = {};
+  prod.forEach(r => { const k = r.product + '|' + r.unit; const v = byProd[k] ||= { p: r.product, u: r.unit, c: r.cat, n: 0, plan: 0, fact: 0 }; v.n++; v.plan += r.plan || 0; v.fact += r.fact || 0; });
+  const prodRows = Object.values(byProd).sort((a, b) => CATS.indexOf(a.c) - CATS.indexOf(b.c) || b.fact - a.fact)
+    .map(v => `<tr><td>${esc(v.p)}</td><td>${esc(v.c)}</td><td class="num">${v.n}</td><td class="num"><b>${fmt(v.fact)}</b> ${esc(v.u)}</td>${pctCell(v.fact, v.plan)}</tr>`);
+  // 3. Качество
+  const st = { ok: 0, bad: 0, none: 0 };
+  qc.forEach(r => st[qcStatus(r).st]++);
+  const badRows = qc.filter(r => qcStatus(r).st === 'bad').sort((a, b) => a.date.localeCompare(b.date))
+    .map(r => `<tr><td>${fmtDate(r.date)}</td><td>${esc(r.batch)}</td><td>${esc(r.cat)}</td><td>${esc(r.param)}</td><td class="num bad">${fmt(r.value)}</td><td>${normText(r.norm)}</td></tr>`);
+  const untested = prod.filter(p => !qcOfBatch(p.batch).length).length;
+  // 4. Простои
+  const downTotal = down.reduce((s, d) => s + d.minutes, 0);
+  const reasonRows = downByReason(down).map(([r, mn]) => `<tr><td>${esc(r)}</td><td class="num">${down.filter(d => d.reason === r).length}</td><td class="num"><b>${fmtHours(mn)}</b></td><td class="num">${Math.round(mn / downTotal * 100)}%</td></tr>`);
+  const lineAgg = {};
+  down.forEach(d => lineAgg[d.line] = (lineAgg[d.line] || 0) + d.minutes);
+  const lineRows = Object.entries(lineAgg).sort((a, b) => b[1] - a[1]).map(([l, mn]) => `<tr><td>${esc(l)}</td><td class="num"><b>${fmtHours(mn)}</b></td></tr>`);
+  // 5. Склад
+  const matRows = db.mats.slice().sort((a, b) => a.name.localeCompare(b.name)).map(x => {
+    const mv = db.moves.filter(v => v.matId === x.id && v.date.startsWith(m));
+    const inQ = mv.filter(v => v.type === 'in').reduce((s, v) => s + v.qty, 0), outQ = mv.filter(v => v.type === 'out').reduce((s, v) => s + v.qty, 0);
+    const endQ = db.moves.filter(v => v.matId === x.id && v.date <= m + '-31').reduce((s, v) => s + (v.type === 'in' ? v.qty : -v.qty), 0);
+    const low = endQ < 0 || (hasVal(x.min) && endQ < x.min);
+    return `<tr><td>${esc(x.name)}</td><td class="num">${inQ ? '+' + fmt(inQ) : ''}</td><td class="num">${outQ ? '−' + fmt(outQ) : ''}</td><td class="num ${low ? 'bad' : ''}"><b>${fmt(endQ)}</b></td><td>${esc(x.unit)}</td></tr>`;
+  });
+
+  $('#reportBody').innerHTML = `
+    <div class="rep-head">
+      <div><div class="brand-co">ЗАО «Ереванское пиво»</div><h2>Отчёт по производству за ${MONTHS[+mo - 1]} ${y}</h2></div>
+      <div class="hint">Сформирован ${fmtDate(today())}</div>
+    </div>
+    <div class="rep-kpis">
+      <div><span>Партий</span><b>${prod.length}</b></div>
+      <div><span>Анализов</span><b>${qc.length}</b></div>
+      <div class="${st.bad ? 'bad' : ''}"><span>Отклонений</span><b>${st.bad}</b></div>
+      <div><span>Простои</span><b>${fmtHours(downTotal)}</b></div>
+    </div>
+    <h3>1. Выпуск по направлениям</h3>
+    ${rTable(['Направление', 'Партий', 'План', 'Факт', 'Ед.', 'Выполнение'], catRows)}
+    <h3>2. Выпуск по продуктам</h3>
+    ${rTable(['Продукт', 'Направление', 'Партий', 'Факт', 'Выполнение'], prodRows)}
+    <h3>3. Контроль качества</h3>
+    <p>Анализов: <b>${qc.length}</b> · в норме: <b>${st.ok}</b> · отклонений: <b class="${st.bad ? 'bad' : ''}">${st.bad}</b> · без нормы: <b>${st.none}</b> · партий без анализов: <b>${untested}</b></p>
+    ${badRows.length ? rTable(['Дата', 'Партия', 'Направление', 'Показатель', 'Значение', 'Норма'], badRows) : '<p class="hint">Отклонений за месяц нет.</p>'}
+    <h3>4. Простои</h3>
+    <p>Всего: <b>${fmtHours(downTotal)}</b> · случаев: <b>${down.length}</b></p>
+    <div class="rep-cols">
+      <div>${rTable(['Причина', 'Случаев', 'Время', 'Доля'], reasonRows, 'простоев нет')}</div>
+      <div>${rTable(['Линия', 'Время'], lineRows, 'простоев нет')}</div>
+    </div>
+    <h3>5. Сырьё</h3>
+    ${rTable(['Сырьё', 'Приход', 'Расход', 'Остаток на конец', 'Ед.'], matRows, 'позиции склада не заведены')}
+    <div class="rep-sign"><div>Зам. начальника производства</div><div>__________________</div></div>`;
+}
+
 function renderAll() {
-  renderDash(); renderProd(); renderRec(); renderQc(); renderKb();
+  renderDash(); renderProd(); renderRec(); renderQc(); renderKb(); renderStock(); renderDown(); renderReport();
   flashId = null;
 }
 renderAll();
