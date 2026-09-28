@@ -1,0 +1,32 @@
+:root { --bg:#f6f4ef; --card:#fff; --ink:#222; --muted:#666; --acc:#b5651d; --bad:#c0392b; --ok:#2e7d32; --line:#ddd; }
+* { box-sizing: border-box; }
+body { margin:0; font:15px/1.4 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+header { background:#3b2412; color:#fff; padding:10px 16px; }
+header h1 { margin:0 0 8px; font-size:20px; }
+nav { display:flex; flex-wrap:wrap; gap:4px; }
+nav button { background:transparent; color:#fff; border:1px solid #fff5; border-radius:6px; padding:6px 10px; cursor:pointer; }
+nav button.active { background:var(--acc); border-color:var(--acc); }
+main { padding:16px; max-width:1100px; margin:auto; }
+.tab { display:none; } .tab.active { display:block; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin-bottom:16px; }
+.card h3 { margin-top:0; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px 12px; margin-bottom:10px; }
+.grid .wide { grid-column:1/-1; }
+label { display:flex; flex-direction:column; font-size:13px; color:var(--muted); gap:2px; }
+.row { display:flex; flex-wrap:wrap; gap:8px; align-items:end; margin-bottom:10px; }
+.row label { flex-direction:row; align-items:center; gap:6px; }
+input, select, textarea { font:inherit; padding:6px 8px; border:1px solid #bbb; border-radius:5px; background:#fff; color:var(--ink); }
+button { font:inherit; padding:6px 12px; border:0; border-radius:5px; background:var(--acc); color:#fff; cursor:pointer; margin:2px 4px 2px 0; }
+button.small { padding:2px 8px; font-size:12px; background:#888; }
+table { width:100%; border-collapse:collapse; background:var(--card); margin-bottom:16px; font-size:14px; }
+th, td { border-bottom:1px solid var(--line); padding:5px 8px; text-align:left; }
+th { background:#eee8dd; }
+td.num { text-align:right; }
+tr.bad td { color:var(--bad); font-weight:600; }
+.ok { color:var(--ok); } .bad { color:var(--bad); font-weight:600; }
+.hint { color:var(--muted); font-size:13px; }
+#kbSearch, #prodSearch { padding:6px 8px; min-width:240px; margin-bottom:10px; }
+.doc { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-bottom:8px; }
+.doc h4 { margin:0 0 4px; } .doc pre { white-space:pre-wrap; font:inherit; margin:6px 0; }
+.file input { display:none; } .file { display:inline-block; background:#666; color:#fff; padding:6px 12px; border-radius:5px; cursor:pointer; }
+@media (max-width:600px) { table { display:block; overflow-x:auto; } }

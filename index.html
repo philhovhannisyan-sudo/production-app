@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Производство — Ереванское пиво</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Производство <small id="syncBadge"></small></h1>
+  <nav id="tabs">
+    <button data-tab="dash" class="active">Сводка</button>
+    <button data-tab="prod">Учёт выпуска</button>
+    <button data-tab="rec">Рецептуры</button>
+    <button data-tab="qc">Качество</button>
+    <button data-tab="kb">База знаний</button>
+    <button data-tab="data">Данные</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Сводка -->
+  <section id="dash" class="tab active">
+    <div class="row">
+      <label>Месяц <input type="month" id="dashMonth"></label>
+    </div>
+    <table id="dashTable"></table>
+    <h3>Последние отклонения по качеству</h3>
+    <table id="dashQc"></table>
+  </section>
+
+  <!-- Учёт выпуска -->
+  <section id="prod" class="tab">
+    <form id="prodForm" class="card">
+      <h3>Новая запись</h3>
+      <div class="grid">
+        <label>Дата <input type="date" name="date" required></label>
+        <label>Направление <select name="cat" class="catSelect" required></select></label>
+        <label>Продукт <input name="product" list="productList" required></label>
+        <label>№ партии <input name="batch" required></label>
+        <label>Смена <select name="shift"><option>1</option><option>2</option><option>3</option></select></label>
+        <label>План <input type="number" step="any" name="plan"></label>
+        <label>Факт <input type="number" step="any" name="fact" required></label>
+        <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option><option>шт</option></select></label>
+        <label class="wide">Примечание <input name="note"></label>
+      </div>
+      <button>Добавить</button>
+    </form>
+    <div class="row">
+      <label>Фильтр <select id="prodFilter" class="catSelect" data-all="1"></select></label>
+      <input id="prodSearch" placeholder="Поиск по продукту / партии">
+    </div>
+    <table id="prodTable"></table>
+  </section>
+
+  <!-- Рецептуры -->
+  <section id="rec" class="tab">
+    <form id="recForm" class="card">
+      <h3>Рецептура</h3>
+      <input type="hidden" name="id">
+      <div class="grid">
+        <label>Продукт <input name="product" required></label>
+        <label>Направление <select name="cat" class="catSelect" required></select></label>
+        <label>Базовый объём <input type="number" step="any" name="base" required></label>
+        <label>Ед. <select name="unit"><option>дал</option><option>л</option><option>гл</option><option>кг</option><option>т</option></select></label>
+      </div>
+      <table id="ingTable" class="edit">
+        <thead><tr><th>Сырьё</th><th>Кол-во</th><th>Ед.</th><th>Цена за ед.</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" id="addIng">+ Сырьё</button>
+      <button>Сохранить</button>
+      <button type="button" id="recReset">Очистить</button>
+    </form>
+    <table id="recTable"></table>
+
+    <div class="card">
+      <h3>Калькулятор партии</h3>
+      <div class="row">
+        <select id="calcRec"></select>
+        <label>Объём партии <input type="number" step="any" id="calcVol"></label>
+      </div>
+      <table id="calcTable"></table>
+    </div>
+  </section>
+
+  <!-- Качество -->
+  <section id="qc" class="tab">
+    <form id="qcForm" class="card">
+      <h3>Результат анализа</h3>
+      <div class="grid">
+        <label>Дата <input type="date" name="date" required></label>
+        <label>Направление <select name="cat" class="catSelect" required></select></label>
+        <label>№ партии <input name="batch" required></label>
+        <label>Показатель <select name="param" required></select></label>
+        <label>Значение <input type="number" step="any" name="value" required></label>
+        <label>Лаборант <input name="who"></label>
+      </div>
+      <button>Добавить</button>
+    </form>
+    <table id="qcTable"></table>
+
+    <div class="card">
+      <h3>Нормы показателей</h3>
+      <p class="hint">Значения по умолчанию — примерные. Сверьте с вашими ТУ/ГОСТ и технологическими инструкциями.</p>
+      <form id="normForm" class="row">
+        <select name="cat" class="catSelect" required></select>
+        <input name="param" placeholder="Показатель" required>
+        <input name="min" type="number" step="any" placeholder="мин">
+        <input name="max" type="number" step="any" placeholder="макс">
+        <input name="unit" placeholder="ед.">
+        <button>Добавить/изменить</button>
+      </form>
+      <table id="normTable"></table>
+    </div>
+  </section>
+
+  <!-- База знаний -->
+  <section id="kb" class="tab">
+    <form id="kbForm" class="card">
+      <h3>Документ</h3>
+      <input type="hidden" name="id">
+      <div class="grid">
+        <label>Название <input name="title" required></label>
+        <label>Направление <select name="cat" class="catSelect" data-all="1"></select></label>
+        <label>Тип <select name="type"><option>Технологическая инструкция</option><option>ГОСТ / ТУ</option><option>Регламент</option><option>Санитария / мойка</option><option>Охрана труда</option><option>Отчёт</option><option>Другое</option></select></label>
+        <label>Ссылка <input name="link" type="url"></label>
+        <label class="wide">Текст / заметки <textarea name="text" rows="5"></textarea></label>
+      </div>
+      <button>Сохранить</button>
+    </form>
+    <input id="kbSearch" placeholder="Поиск по документам">
+    <div id="kbList"></div>
+  </section>
+
+  <!-- Данные -->
+  <section id="data" class="tab">
+    <div class="card">
+      <h3>Синхронизация через GitHub</h3>
+      <p class="hint">Данные сохраняются в файл в вашем приватном репозитории — одни и те же на телефоне и ноутбуке. На каждом устройстве введите настройки один раз. Токен хранится только в этом браузере.</p>
+      <form id="ghForm" class="grid">
+        <label>Владелец <input name="owner" required></label>
+        <label>Репозиторий <input name="repo" required></label>
+        <label>Ветка <input name="branch" required></label>
+        <label>Файл данных <input name="path" required></label>
+        <label class="wide">Токен (fine-grained, Contents: Read and write) <input name="token" type="password" autocomplete="off"></label>
+        <div class="wide">
+          <button>Сохранить и подключить</button>
+          <button type="button" id="ghPull">Загрузить с GitHub</button>
+          <button type="button" id="ghOff">Отключить</button>
+        </div>
+      </form>
+      <p id="ghStatus" class="hint"></p>
+    </div>
+    <div class="card">
+      <h3>Резервная копия</h3>
+      <p class="hint">Данные хранятся в этом браузере. Регулярно сохраняйте копию.</p>
+      <button id="exportJson">Скачать копию (JSON)</button>
+      <label class="file">Загрузить копию <input type="file" id="importJson" accept=".json"></label>
+      <button id="exportCsv">Выпуск в CSV (Excel)</button>
+      <button id="exportQcCsv">Анализы в CSV (Excel)</button>
+    </div>
+  </section>
+</main>
+
+<datalist id="productList"></datalist>
+<script src="app.js"></script>
+</body>
+</html>
