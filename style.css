@@ -275,3 +275,11 @@ nav#tabs button.active svg.ic { opacity:1; stroke-width:2; }
   nav#tabs button { gap:3px; }
   nav#tabs svg.ic { width:24px; height:24px; }
 }
+
+/* Режим приложения на iPhone: шапка под строкой состояния и «чёлкой» */
+header { padding-top:calc(10px + env(safe-area-inset-top)); padding-left:calc(16px + env(safe-area-inset-left)); padding-right:calc(16px + env(safe-area-inset-right)); }
+@media (max-width:600px) { header { padding-top:calc(8px + env(safe-area-inset-top)); } }
+@media (display-mode: standalone) {
+  body { -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; overscroll-behavior-y:none; }
+  input, textarea, pre, td { -webkit-user-select:text; user-select:text; }
+}
