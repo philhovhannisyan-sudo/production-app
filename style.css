@@ -30,7 +30,6 @@ nav#tabs .ic { margin-right:6px; }
 #moreMenu { position:fixed; right:12px; bottom:76px; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:var(--r); box-shadow:0 8px 24px #0003; padding:6px; z-index:40; display:flex; flex-direction:column; min-width:240px; }
 #moreMenu[hidden] { display:none; }
 #moreMenu button { background:transparent; color:var(--ink); text-align:left; padding:12px; margin:0; font-size:15px; }
-#moreMenu button:hover { background:var(--head); }
 
 /* Синхронизация */
 .sync { margin:0; font-size:13px; padding:6px 12px; border-radius:999px; background:#ffffff1f; color:#fff; border:1px solid #ffffff55; white-space:nowrap; }
@@ -47,7 +46,6 @@ main { padding:16px; max-width:1100px; margin:auto; }
 
 /* Кнопки: основная / второстепенная / опасная */
 button, .btn-secondary.file { font:inherit; font-size:15px; min-height:var(--tap); padding:8px 16px; border:1px solid transparent; border-radius:8px; background:var(--acc); color:var(--acc-ink); cursor:pointer; margin:0; font-weight:500; }
-button:hover { filter:brightness(.95); }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .kpi:focus-visible { outline:3px solid #f0a55a; outline-offset:1px; }
 .btn-secondary, .btn-secondary.file { background:var(--card); color:var(--acc); border-color:#d9b894; }
 .btn-danger { background:var(--card); color:var(--bad); border-color:#e8b4ae; }
@@ -92,7 +90,6 @@ tr.bad td { color:var(--bad); }
 tr.bad td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
 tr.total td { background:var(--head); }
 table.clickable tbody tr[data-id] { cursor:pointer; }
-table.clickable tbody tr[data-id]:hover td { background:#faf6f0; }
 tr.empty td { text-align:center; padding:24px; }
 .cat { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
 .cat i { width:9px; height:9px; border-radius:50%; display:inline-block; }
@@ -106,7 +103,6 @@ tr.flash td, .doc.flash { animation:flash 2.5s ease-out; }
 /* Сводка */
 .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
 .kpi { display:block; width:100%; text-align:left; background:var(--card); color:var(--ink); border:1px solid var(--line); border-top:4px solid var(--c); border-radius:var(--r); padding:12px 14px; font-weight:400; }
-.kpi:hover { filter:none; box-shadow:0 2px 10px #0000000f; }
 .kpi-name { font-weight:600; margin-bottom:6px; }
 .kpi-val { font-size:24px; font-weight:700; line-height:1.2; }
 .kpi-val small { font-size:14px; font-weight:500; color:var(--muted); }
@@ -121,7 +117,6 @@ tr.flash td, .doc.flash { animation:flash 2.5s ease-out; }
 
 /* База знаний */
 .doc { background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:12px 16px; margin-bottom:10px; cursor:pointer; }
-.doc:hover { box-shadow:0 2px 10px #0000000f; }
 .doc h4 { margin:0 0 4px; }
 .doc pre { white-space:pre-wrap; font:inherit; margin:8px 0 0; color:var(--ink); }
 .empty-note { text-align:center; color:var(--muted); padding:32px 16px; background:var(--card); border:1px dashed var(--line); border-radius:var(--r); }
@@ -279,7 +274,58 @@ nav#tabs button.active svg.ic { opacity:1; stroke-width:2; }
 /* Режим приложения на iPhone: шапка под строкой состояния и «чёлкой» */
 header { padding-top:calc(10px + env(safe-area-inset-top)); padding-left:calc(16px + env(safe-area-inset-left)); padding-right:calc(16px + env(safe-area-inset-right)); }
 @media (max-width:600px) { header { padding-top:calc(8px + env(safe-area-inset-top)); } }
-@media (display-mode: standalone) {
-  body { -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; overscroll-behavior-y:none; }
-  input, textarea, pre, td { -webkit-user-select:text; user-select:text; }
+
+/* ---------- Мобильная база ---------- */
+html {
+  -webkit-tap-highlight-color: transparent; /* без серой вспышки при тапе — вместо неё :active ниже */
+  overscroll-behavior: none;                /* ни pull-to-refresh, ни резинки всей страницы */
+}
+body { overscroll-behavior: none; }
+dialog { overscroll-behavior: contain; }    /* прокрутка окна не передаётся странице под ним */
+
+/* Наведение — только у мыши. На телефоне :hover «залипает» после тапа. */
+@media (hover: hover) and (pointer: fine) {
+  button:hover { filter:brightness(.95); }
+  #moreMenu button:hover { background:var(--head); }
+  table.clickable tbody tr[data-id]:hover td { background:#faf6f0; }
+  .kpi:hover { filter:none; box-shadow:0 2px 10px #0000000f; }
+  .doc:hover { box-shadow:0 2px 10px #0000000f; }
+}
+
+/* Без задержки тапа */
+button, a, summary, label, select, .kpi, .doc, table.clickable tbody tr[data-id] { touch-action: manipulation; }
+
+/* Управляющие элементы не выделяются долгим нажатием; текст записей остаётся выделяемым */
+button, summary, .seg, nav#tabs {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Отклик на нажатие, а не на отпускание */
+button { transition: transform 120ms ease-out, background-color 120ms ease-out; }
+button:active { transform: scale(.97); }
+nav#tabs button:active { transform: none; opacity: .55; }
+table.clickable tbody tr[data-id]:active td { background:#f3ebdf; }
+.doc:active { background:#faf6f0; }
+@media (max-width:600px) {
+  table.cards.clickable tbody tr[data-id]:active { background:#f3ebdf; }
+}
+
+/* Вырез и скругления экрана в альбомной ориентации */
+main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
+@media (max-width:600px) {
+  nav#tabs { padding-left:env(safe-area-inset-left, 0px); padding-right:env(safe-area-inset-right, 0px); }
+  dialog form { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); }
+}
+
+/* Верхняя панель не помещается между телефоном в альбомной ориентации и ноутбуком: прокручивается сама, страницу не раздвигает */
+@media (min-width:601px) {
+  nav#tabs { overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:none; }
+  nav#tabs::-webkit-scrollbar { display:none; }
+  nav#tabs button { flex:none; white-space:nowrap; }
+}
+
+/* Планшет в портрете: широкая таблица прокручивается внутри себя, а не раздвигает страницу */
+@media (min-width:601px) and (max-width:900px) {
+  table.cards { display:block; overflow-x:auto; }
 }

@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="light">
 <meta name="theme-color" content="#3b2412">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -81,7 +82,7 @@
     <div class="filters">
       <div class="seg" data-period="prod"></div>
       <select id="prodFilter" class="catSelect" data-all="1" aria-label="Направление"></select>
-      <input id="prodSearch" type="search" placeholder="Поиск: продукт или партия">
+      <input id="prodSearch" type="search" enterkeyhint="search" placeholder="Поиск: продукт или партия">
     </div>
     <table class="cards clickable" id="prodTable"></table>
   </section>
@@ -145,7 +146,7 @@
       </div>
     </div>
     <div class="filters">
-      <input id="stockSearch" type="search" placeholder="Поиск сырья">
+      <input id="stockSearch" type="search" enterkeyhint="search" placeholder="Поиск сырья">
       <label class="check"><input type="checkbox" id="stockLow"> Только ниже минимума</label>
     </div>
     <table class="cards clickable" id="matTable"></table>
@@ -193,7 +194,7 @@
       <button type="button" class="add-btn" data-new="kb">+ Документ</button>
     </div>
     <div class="filters">
-      <input id="kbSearch" type="search" placeholder="Поиск по документам">
+      <input id="kbSearch" type="search" enterkeyhint="search" placeholder="Поиск по документам">
       <select id="kbFilter" class="catSelect" data-all="1" aria-label="Направление"></select>
     </div>
     <div id="kbList"></div>
@@ -206,13 +207,13 @@
       <h3>Синхронизация через GitHub</h3>
       <p class="hint">Данные сохраняются в файл в вашем приватном репозитории — одни и те же на телефоне и ноутбуке. На каждом устройстве введите токен один раз. Токен хранится только в этом браузере.</p>
       <form id="ghForm" class="grid">
-        <label class="wide">Токен (fine-grained, Contents: Read and write) <input name="token" type="password" autocomplete="off"></label>
+        <label class="wide">Токен (fine-grained, Contents: Read and write) <input name="token" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
         <details class="wide"><summary class="hint">Дополнительные настройки</summary>
           <div class="grid">
-            <label>Владелец <input name="owner" required></label>
-            <label>Репозиторий <input name="repo" required></label>
-            <label>Ветка <input name="branch" required></label>
-            <label>Файл данных <input name="path" required></label>
+            <label>Владелец <input name="owner" required autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+            <label>Репозиторий <input name="repo" required autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+            <label>Ветка <input name="branch" required autocapitalize="none" autocorrect="off" spellcheck="false"></label>
+            <label>Файл данных <input name="path" required autocapitalize="none" autocorrect="off" spellcheck="false"></label>
           </div>
         </details>
         <div class="wide actions">
@@ -242,7 +243,7 @@
     <input type="hidden" name="id">
     <div class="grid">
       <label>Продукт <input name="product" list="productList" required autocomplete="off"></label>
-      <label>№ партии <input name="batch" required autocomplete="off"></label>
+      <label>№ партии <input name="batch" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
       <label>Направление <select name="cat" class="catSelect" required></select></label>
       <label>Дата <input type="date" name="date" required></label>
       <label>Смена <select name="shift"><option>1</option><option>2</option><option>3</option></select></label>
@@ -275,7 +276,7 @@
     <div class="dlg-head"><h3 id="qcDlgTitle">Новый анализ</h3><button type="button" class="x" data-close aria-label="Закрыть">✕</button></div>
     <input type="hidden" name="id">
     <div class="grid">
-      <label>№ партии <input name="batch" list="batchList" required autocomplete="off"></label>
+      <label>№ партии <input name="batch" list="batchList" required autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></label>
       <label>Направление <select name="cat" class="catSelect" required></select></label>
       <label>Показатель <input name="param" list="paramList" required autocomplete="off"></label>
       <label>Значение <input type="number" step="any" inputmode="decimal" name="value" required></label>

@@ -202,6 +202,7 @@ function go(tab) {
   $$('#tabs button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('#moreBtn').classList.toggle('active', ['rec', 'down', 'report', 'kb', 'data'].includes(tab));
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === tab));
+  const cur = $('#tabs button.active'); if (cur) cur.scrollIntoView({ inline: 'nearest', block: 'nearest' }); // активная вкладка не прячется за краем
   $('#moreMenu').hidden = true;
   setPref('tab', tab);
   window.scrollTo(0, 0);
