@@ -305,7 +305,13 @@ function removeRecord(coll, id, label, linked = []) {
 }
 
 /* ---------- Окна ---------- */
-function openDlg(dlg) { dlg.showModal(); const f = dlg.querySelector('input:not([type=hidden]):not([readonly])'); if (f && matchMedia('(min-width:601px)').matches) f.focus(); }
+function openDlg(dlg) {
+  dlg.showModal();
+  const f = dlg.querySelector('input:not([type=hidden]):not([readonly])');
+  if (f && matchMedia('(min-width:601px)').matches) f.focus();
+  // showModal() сам ставит фокус на первую кнопку («✕»); на телефоне это выглядит как оранжевая рамка вокруг неё
+  else if (matchMedia('(pointer: coarse)').matches && document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+}
 $$('dialog').forEach(d => {
   d.querySelectorAll('[data-close]').forEach(b => b.onclick = () => d.close());
   d.addEventListener('click', e => { if (e.target === d) d.close(); }); // клик по фону

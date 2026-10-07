@@ -371,3 +371,8 @@ dialog::backdrop { transition: opacity 180ms var(--ease-out); }
     #moreMenu { opacity:0; transform:none; }
   }
 }
+
+/* Полноэкранное окно на iPhone в режиме приложения лежит под часами и батареей: шапка окна опускается ниже строки состояния */
+@media (max-width:600px) {
+  .dlg-head { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+}
