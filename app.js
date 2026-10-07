@@ -203,12 +203,29 @@ function go(tab) {
   $$('#tabs button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('#moreBtn').classList.toggle('active', ['rec', 'down', 'report', 'kb', 'data'].includes(tab));
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === tab));
-  const cur = $('#tabs button.active'); if (cur) cur.scrollIntoView({ inline: 'nearest', block: 'nearest' }); // активная вкладка не прячется за краем
+  // Активная вкладка не прячется за краем верхней панели. Прокручивается только сама панель:
+  // scrollIntoView мог сдвигать видимую область страницы, а панель на телефоне закреплена внизу.
+  const nav = $('#tabs'), cur = nav.querySelector('button.active');
+  if (cur && nav.scrollWidth > nav.clientWidth) {
+    const n = nav.getBoundingClientRect(), c = cur.getBoundingClientRect();
+    if (c.left < n.left) nav.scrollLeft -= n.left - c.left + 16;
+    else if (c.right > n.right) nav.scrollLeft += c.right - n.right + 16;
+  }
   $('#moreMenu').hidden = true;
   setPref('tab', tab);
   window.scrollTo(0, 0);
 }
 $$('#tabs button[data-tab]').forEach(b => b.onclick = () => go(b.dataset.tab));
+
+// На телефоне нижняя панель лежит прямо в body, а не внутри закреплённой (sticky) шапки:
+// закреплённый элемент внутри sticky-родителя в Safari на iPhone ведёт себя непредсказуемо.
+const tabsNav = $('#tabs'), phoneQuery = matchMedia('(max-width: 600px)');
+const placeTabs = () => {
+  const target = phoneQuery.matches ? document.body : $('header');
+  if (tabsNav.parentElement !== target) target.appendChild(tabsNav);
+};
+placeTabs();
+phoneQuery.addEventListener('change', placeTabs);
 $('#moreBtn').onclick = e => { e.stopPropagation(); $('#moreMenu').hidden = !$('#moreMenu').hidden; };
 $$('#moreMenu [data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
 document.addEventListener('click', e => { if (!e.target.closest('#moreMenu')) $('#moreMenu').hidden = true; });
