@@ -309,6 +309,22 @@ $$('dialog').forEach(d => {
   d.querySelectorAll('[data-close]').forEach(b => b.onclick = () => d.close());
   d.addEventListener('click', e => { if (e.target === d) d.close(); }); // клик по фону
 });
+// Клавиатура на iPhone не уменьшает окно страницы — уменьшается только видимая область (visualViewport).
+// Пока клавиатура открыта, подгоняем окна под видимую область, чтобы кнопки оставались над клавиатурой.
+if (window.visualViewport) {
+  const vv = window.visualViewport, root = document.documentElement;
+  const fitKeyboard = () => {
+    const open = vv.scale <= 1.01 && window.innerHeight - vv.height > 120; // при щипке-зуме клавиатуры нет
+    root.classList.toggle('kb', open);
+    root.style.setProperty('--vvh', vv.height + 'px');
+    root.style.setProperty('--vvt', vv.offsetTop + 'px');
+    const el = document.activeElement;
+    if (open && el && el.closest('dialog[open]')) el.scrollIntoView({ block: 'nearest' });
+  };
+  vv.addEventListener('resize', fitKeyboard);
+  vv.addEventListener('scroll', fitKeyboard);
+  fitKeyboard();
+}
 $$('[data-new]').forEach(b => b.onclick = () => ({ prod: () => openProd(), qc: () => openQc(), rec: () => openRec(), kb: () => openKb(), mat: () => openMat(), in: () => openMove(null, 'in'), out: () => openMove(null, 'out'), down: () => openDown() })[b.dataset.new]());
 
 /* ---------- Выпуск ---------- */

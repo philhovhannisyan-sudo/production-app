@@ -329,3 +329,11 @@ main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px
 @media (min-width:601px) and (max-width:900px) {
   table.cards { display:block; overflow-x:auto; }
 }
+
+/* Клавиатура открыта: окно занимает только видимую область, кнопки остаются над клавиатурой */
+dialog { scroll-padding: 64px 0 84px; }   /* поле в фокусе не прячется под липкой шапкой и кнопками окна */
+html.kb dialog { top:var(--vvt, 0px); bottom:auto; margin-block:0; max-height:var(--vvh, 100dvh); }
+html.kb dialog form { padding-bottom:12px; } /* клавиатура закрывает индикатор «Домой» — запас под него не нужен */
+@media (max-width:600px) {
+  html.kb dialog, html.kb dialog.wide-dlg { height:var(--vvh, 100dvh); }
+}
