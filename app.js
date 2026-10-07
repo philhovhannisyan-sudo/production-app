@@ -180,6 +180,7 @@ const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const fmt = n => (n == null || n === '' || isNaN(n)) ? '' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
+const fmtPct = n => (n == null || n === '' || isNaN(n)) ? '' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
 // Дата по местному времени (toISOString дал бы UTC — в Ереване до 4 утра это вчера)
 const isoDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const today = () => isoDate(new Date());
@@ -414,7 +415,7 @@ function renderProd() {
       const pct = r.plan ? r.fact / r.plan * 100 : null;
       return `<tr data-id="${r.id}" class="${r.id === flashId ? 'flash' : ''}"><td>${fmtDate(r.date)}</td><td><b>${esc(r.product)}</b></td><td>${esc(r.batch)}</td><td>${catTag(r.cat)}</td><td>${esc(r.shift)}</td>
         <td class="num">${r.plan == null ? '' : fmt(r.plan) + ' ' + esc(r.unit)}</td><td class="num">${fmt(r.fact)} ${esc(r.unit)}</td>
-        <td class="num ${pct != null && pct < 95 ? 'bad' : ''}">${pct == null ? '' : fmt(pct) + '%'}</td><td>${batchQuality(r.batch)}</td><td>${esc(r.note)}</td></tr>`;
+        <td class="num ${pct != null && pct < 95 ? 'bad' : ''}">${pct == null ? '' : fmtPct(pct) + '%'}</td><td>${batchQuality(r.batch)}</td><td class="note">${esc(r.note)}</td></tr>`;
     }), emptyText(period.prod, 'Партий', '«+ Партия»'));
   const names = new Set([...db.prod.map(r => r.product), ...db.recipes.map(r => r.product)]);
   $('#productList').innerHTML = [...names].map(n => `<option value="${esc(n)}">`).join('');
@@ -716,7 +717,7 @@ function renderDash() {
       const pct = v.plan ? v.fact / v.plan * 100 : null;
       return `<div class="kpi-val">${fmt(v.fact)} <small>${esc(u)}</small></div>
         ${pct == null ? '<div class="hint">план не задан</div>' : `<div class="bar"><i class="${pct < 95 ? 'low' : ''}" style="width:${Math.min(pct, 100)}%"></i></div>
-        <div class="kpi-sub"><span class="${pct < 95 ? 'bad' : 'ok'}">${fmt(pct)}% плана</span> · план ${fmt(v.plan)}</div>`}`;
+        <div class="kpi-sub"><span class="${pct < 95 ? 'bad' : 'ok'}">${fmtPct(pct)}% плана</span><span>план ${fmt(v.plan)}</span></div>`}`;
     }).join('');
     return `<button type="button" class="kpi" data-cat="${c}" style="--c:${CAT_COLOR[c]}">
       <div class="kpi-name">${esc(c)}</div>
@@ -962,7 +963,7 @@ function renderStock() {
       const m = db.mats.find(y => y.id === x.matId);
       return `<tr data-id="${x.id}" class="${x.id === flashId ? 'flash' : ''}"><td>${fmtDate(x.date)}</td>
         <td>${x.type === 'in' ? '<span class="st st-ok">приход</span>' : '<span class="st st-none">расход</span>'}</td>
-        <td>${esc(m ? m.name : '—')}</td><td class="num">${x.type === 'in' ? '+' : '−'}${fmt(x.qty)} ${esc(m ? m.unit : '')}</td><td>${esc(x.note)}</td></tr>`;
+        <td>${esc(m ? m.name : '—')}</td><td class="num">${x.type === 'in' ? '+' : '−'}${fmt(x.qty)} ${esc(m ? m.unit : '')}</td><td class="note">${esc(x.note)}</td></tr>`;
     }), 'Движений за период нет');
 }
 
@@ -1021,7 +1022,7 @@ function renderDown() {
     `<div class="reason"><div class="reason-top"><span>${esc(r)}</span><b>${fmtHours(m)}</b></div><div class="bar"><i class="low" style="width:${m / reasons[0][1] * 100}%"></i></div></div>`).join('') : '';
   table($('#downTable'), ['Дата', 'Линия', 'Причина', 'Длительность', 'Смена', 'Направление', 'Описание'],
     list.map(d => `<tr data-id="${d.id}" class="${d.id === flashId ? 'flash' : ''}"><td>${fmtDate(d.date)}</td><td><b>${esc(d.line)}</b></td><td>${esc(d.reason)}</td>
-      <td class="num"><b>${fmtHours(d.minutes)}</b></td><td>${esc(d.shift)}</td><td>${catTag(d.cat)}</td><td>${esc(d.note)}</td></tr>`),
+      <td class="num"><b>${fmtHours(d.minutes)}</b></td><td>${esc(d.shift)}</td><td>${catTag(d.cat)}</td><td class="note">${esc(d.note)}</td></tr>`),
     emptyText(period.down, 'Простоев', '«+ Простой»'));
   $('#lineList').innerHTML = [...new Set(db.down.map(d => d.line))].map(l => `<option value="${esc(l)}">`).join('');
 }
@@ -1040,7 +1041,7 @@ function renderReport() {
   const prod = db.prod.filter(r => r.date.startsWith(m));
   const qc = db.qc.filter(r => r.date.startsWith(m));
   const down = db.down.filter(r => r.date.startsWith(m));
-  const pctCell = (f, p) => { const v = p ? f / p * 100 : null; return `<td class="num ${v != null && v < 95 ? 'bad' : ''}">${v == null ? '—' : fmt(v) + '%'}</td>`; };
+  const pctCell = (f, p) => { const v = p ? f / p * 100 : null; return `<td class="num ${v != null && v < 95 ? 'bad' : ''}">${v == null ? '—' : fmtPct(v) + '%'}</td>`; };
 
   // 1. Выпуск по направлениям
   const catRows = [];

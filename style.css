@@ -19,10 +19,10 @@ h4 { margin:16px 0 8px; font-size:15px; }
 
 /* Шапка */
 header { background:var(--brand); color:#fff; padding:10px 16px 0; position:sticky; top:0; z-index:20; }
-.topbar { display:flex; align-items:center; justify-content:space-between; gap:8px; max-width:1100px; margin:auto; padding-bottom:8px; }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:8px; max-width:1280px; margin:auto; padding-bottom:8px; }
 .brand-co { display:block; font-size:12px; opacity:.75; letter-spacing:.02em; }
 .brand h1 { margin:0; font-size:19px; line-height:1.2; }
-nav#tabs { display:flex; gap:2px; max-width:1100px; margin:auto; }
+nav#tabs { display:flex; gap:2px; max-width:1280px; margin:auto; }
 nav#tabs button { background:transparent; color:#fff; border:0; border-bottom:3px solid transparent; border-radius:0; padding:8px 12px; margin:0; font-size:15px; opacity:.8; cursor:pointer; }
 nav#tabs button.active { opacity:1; border-bottom-color:#f0a55a; font-weight:600; }
 nav#tabs .ic { margin-right:6px; }
@@ -37,7 +37,7 @@ nav#tabs .ic { margin-right:6px; }
 .sync-pending { background:#f9a82533; border-color:#f9c86b; }
 .sync-error { background:var(--bad); border-color:var(--bad); font-weight:600; }
 
-main { padding:16px; max-width:1100px; margin:auto; }
+main { padding:16px; max-width:1280px; margin:auto; }
 .tab { display:none; } .tab.active { display:block; }
 
 /* Заголовок раздела */
@@ -102,13 +102,13 @@ tr.flash td, .doc.flash { animation:flash 2.5s ease-out; }
 
 /* Сводка */
 .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
-.kpi { display:block; width:100%; text-align:left; background:var(--card); color:var(--ink); border:1px solid var(--line); border-top:4px solid var(--c); border-radius:var(--r); padding:12px 14px; font-weight:400; }
-.kpi-name { font-weight:600; margin-bottom:6px; }
+.kpi { display:flex; flex-direction:column; gap:6px; width:100%; text-align:left; background:var(--card); color:var(--ink); border:1px solid var(--line); border-top:4px solid var(--c); border-radius:var(--r); padding:12px 14px; font-weight:400; }
+.kpi-name { font-weight:600; }
 .kpi-val { font-size:24px; font-weight:700; line-height:1.2; }
 .kpi-val small { font-size:14px; font-weight:500; color:var(--muted); }
-.kpi-sub { font-size:13px; margin-top:4px; color:var(--muted); }
-.kpi-foot { font-size:13px; color:var(--muted); margin-top:8px; border-top:1px solid var(--line); padding-top:6px; }
-.bar { height:8px; background:#eee7dc; border-radius:4px; overflow:hidden; margin-top:8px; }
+.kpi-sub { display:flex; flex-wrap:wrap; justify-content:space-between; column-gap:8px; font-size:13px; color:var(--muted); }
+.kpi-foot { font-size:13px; color:var(--muted); margin-top:auto; border-top:1px solid var(--line); padding-top:6px; } /* подвал прижат вниз: карточки в ряду выровнены */
+.bar { height:8px; background:#eee7dc; border-radius:4px; overflow:hidden; }
 .bar i { display:block; height:100%; background:var(--ok); }
 .bar i.low { background:var(--bad); }
 .banner { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; background:var(--acc-soft); border:1px solid #e6c7a4; border-radius:var(--r); padding:12px 16px; margin-bottom:16px; }
@@ -302,7 +302,7 @@ button, summary, .seg, nav#tabs {
 }
 
 /* Отклик на нажатие, а не на отпускание */
-button { transition: transform 120ms ease-out, background-color 120ms ease-out; }
+button { transition: transform 140ms var(--ease-out), background-color 140ms ease; }
 button:active { transform: scale(.97); }
 nav#tabs button:active { transform: none; opacity: .55; }
 table.clickable tbody tr[data-id]:active td { background:#f3ebdf; }
@@ -325,10 +325,9 @@ main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px
   nav#tabs button { flex:none; white-space:nowrap; }
 }
 
-/* Планшет в портрете: широкая таблица прокручивается внутри себя, а не раздвигает страницу */
-@media (min-width:601px) and (max-width:900px) {
-  table.cards { display:block; overflow-x:auto; }
-}
+/* Ширина 601–1279: если таблица не помещается, прокручивается область содержимого, а не вся страница.
+   Таблицы при этом остаются на всю ширину карточки. */
+@media (min-width:601px) and (max-width:1279px) { main { overflow-x:auto; } }
 
 /* Клавиатура открыта: окно занимает только видимую область, кнопки остаются над клавиатурой */
 dialog { scroll-padding: 64px 0 84px; }   /* поле в фокусе не прячется под липкой шапкой и кнопками окна */
@@ -336,4 +335,39 @@ html.kb dialog { top:var(--vvt, 0px); bottom:auto; margin-block:0; max-height:va
 html.kb dialog form { padding-bottom:12px; } /* клавиатура закрывает индикатор «Домой» — запас под него не нужен */
 @media (max-width:600px) {
   html.kb dialog, html.kb dialog.wide-dlg { height:var(--vvh, 100dvh); }
+}
+
+/* ---------- Детали ---------- */
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* Цифры одной ширины: столбцы чисел и даты в таблицах не «ползают» */
+table, .kpi-val, .kpi-sub, .rep-kpis { font-variant-numeric: tabular-nums; }
+
+/* В журнале выпуска растягиваются только «Продукт» и «Примечание»; остальные колонки в одну строку */
+@media (min-width:1100px) { #prodTable td:not([data-label="Продукт"]):not(.note) { white-space:nowrap; } }
+
+/* ---------- Появление ----------
+   Окна — редкое действие, поэтому плавно, но коротко. Закрытие мгновенное: после «Сохранить» система должна отвечать сразу.
+   В браузерах без @starting-style окно просто появляется сразу. */
+dialog[open] { opacity:1; transform:none; transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out); }
+dialog::backdrop { transition: opacity 180ms var(--ease-out); }
+@starting-style {
+  dialog[open] { opacity:0; transform:scale(.96); }
+  dialog[open]::backdrop { opacity:0; }
+  #toast { opacity:0; transform:translateX(-50%) translateY(12px); }
+  #moreMenu { opacity:0; transform:scale(.95); }
+}
+#toast { transition: opacity 200ms var(--ease-out), transform 240ms var(--ease-out); }
+#moreMenu { transform-origin: bottom right; transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); } /* вырастает из кнопки «Ещё» */
+@media (max-width:600px) {
+  dialog[open] { transition: transform 320ms var(--ease-drawer), opacity 120ms linear; }
+  @starting-style { dialog[open] { opacity:1; transform:translateY(100%); } } /* полноэкранное окно выезжает снизу */
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[open], #toast, #moreMenu { transition: opacity 120ms linear; }
+  @starting-style {
+    dialog[open] { opacity:0; transform:none; }
+    #toast { opacity:0; transform:translateX(-50%); }
+    #moreMenu { opacity:0; transform:none; }
+  }
 }
